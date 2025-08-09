@@ -4015,15 +4015,10 @@ get_whole_line_ranges_for_cursors :: (editor: Editor, buffer: Buffer, merge_adja
     return line_ranges;
 }
 
-duplicate_lines :: (editor: *Editor, buffer: *Buffer) {
-    actually_duplicate_lines(editor, buffer, false);
-}
+duplicate_lines    :: #bake_arguments actually_duplicate_lines(keep_selection = false);
+duplicate_lines_up :: #bake_arguments actually_duplicate_lines(keep_selection = true);
 
-duplicate_lines_up :: (editor: *Editor, buffer: *Buffer) {
-    actually_duplicate_lines(editor, buffer, true);
-}
-
-actually_duplicate_lines :: (editor: *Editor, buffer: *Buffer, $keep_selection: bool) {
+actually_duplicate_lines :: (editor: *Editor, buffer: *Buffer, keep_selection: bool) {
     lines := get_whole_line_ranges_for_cursors(editor, buffer, merge_adjacent = false);
 
     active_editor_id := get_active_editor_id();
@@ -4035,20 +4030,15 @@ actually_duplicate_lines :: (editor: *Editor, buffer: *Buffer, $keep_selection: 
         str := copy_temporary_string(get_range_as_string(buffer, line.range));
         if line.is_last then str = tprint("\n%", str);  // make sure duplication works correctly on the last line of the buffer
         insert_string_at_offset(buffer, line.range.end, str);
-        #if keep_selection {
+        if keep_selection {
             add_paste_animation(active_editor_id, .{ start = line.range.start, end = line.range.end });
         } else {
             add_paste_animation(active_editor_id, .{ start = line.range.end, end = line.range.end + cast(s32)str.count });
         }
 
         for * cursor : editor.cursors {
-            #if keep_selection {
-                if line.range.start >= cursor.pos {  // no need to check for cursor.sel because we have whole line ranges
-                    cursor.pos -= xx str.count;
-                    cursor.sel -= xx str.count;
-                }
-            } else {
-                if line.range.start <= cursor.pos {
+            if !keep_selection {
+                if line.range.start <= cursor.pos { // no need to check for cursor.sel because we have whole line ranges
                     cursor.pos += xx str.count;
                     cursor.sel += xx str.count;
                 }
