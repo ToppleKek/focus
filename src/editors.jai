@@ -232,7 +232,7 @@ active_editor_handle_event :: (editor: *Editor, buffer: *Buffer, event: Input.Ev
         case .toggle_line_numbers;              action_toggle_line_numbers();
         case .toggle_pane_numbers;              action_toggle_pane_numbers();
         case .toggle_indent_guides;             action_toggle_indent_guides();
-        
+
         case .copy_current_line_info;           action_copy_current_line_info           (editor, buffer);
         case .center_viewport_on_cursor;        action_center_viewport_on_cursor        (editor, buffer);
         case .move_cursor_to_viewport_center;   action_move_cursor_to_viewport_center   (editor, buffer);
@@ -325,6 +325,7 @@ active_editor_handle_event :: (editor: *Editor, buffer: *Buffer, event: Input.Ev
             case .delete_right_through_word_throttled; delete_right                     (editor, buffer, by = .through_word_throttled);
 
             case .duplicate_lines;                     duplicate_lines                  (editor, buffer); keep_selection = true;
+            case .duplicate_lines_up;                  duplicate_lines_up               (editor, buffer); keep_selection = true;
             case .move_selected_lines_up;              move_lines_up                    (editor, buffer); keep_selection = true;
             case .move_selected_lines_down;            move_lines_down                  (editor, buffer); keep_selection = true;
 
@@ -3132,6 +3133,7 @@ new_edit_group_required_for_action :: (action: Action_Editors, cursor: Cursor) -
         case .indent;                               return true;
         case .unindent;                             return true;
         case .duplicate_lines;                      return true;
+        case .duplicate_lines_up;                   return true;
         case .move_selected_lines_up;               return true;
         case .move_selected_lines_down;             return true;
         case .delete_left_by_character_type;        return true;
@@ -4014,6 +4016,14 @@ get_whole_line_ranges_for_cursors :: (editor: Editor, buffer: Buffer, merge_adja
 }
 
 duplicate_lines :: (editor: *Editor, buffer: *Buffer) {
+    actually_duplicate_lines(editor, buffer, false);
+}
+
+duplicate_lines_up :: (editor: *Editor, buffer: *Buffer) {
+    actually_duplicate_lines(editor, buffer, true);
+}
+
+actually_duplicate_lines :: (editor: *Editor, buffer: *Buffer, $keep_selection: bool) {
     lines := get_whole_line_ranges_for_cursors(editor, buffer, merge_adjacent = false);
 
     active_editor_id := get_active_editor_id();
@@ -4025,12 +4035,23 @@ duplicate_lines :: (editor: *Editor, buffer: *Buffer) {
         str := copy_temporary_string(get_range_as_string(buffer, line.range));
         if line.is_last then str = tprint("\n%", str);  // make sure duplication works correctly on the last line of the buffer
         insert_string_at_offset(buffer, line.range.end, str);
-        add_paste_animation(active_editor_id, .{ start = line.range.end, end = line.range.end + cast(s32)str.count });
+        #if keep_selection {
+            add_paste_animation(active_editor_id, .{ start = line.range.start, end = line.range.end });
+        } else {
+            add_paste_animation(active_editor_id, .{ start = line.range.end, end = line.range.end + cast(s32)str.count });
+        }
 
         for * cursor : editor.cursors {
-            if line.range.start <= cursor.pos {  // no need to check for cursor.sel because we have whole line ranges
-                cursor.pos += xx str.count;
-                cursor.sel += xx str.count;
+            #if keep_selection {
+                if line.range.start >= cursor.pos {  // no need to check for cursor.sel because we have whole line ranges
+                    cursor.pos -= xx str.count;
+                    cursor.sel -= xx str.count;
+                }
+            } else {
+                if line.range.start <= cursor.pos {
+                    cursor.pos += xx str.count;
+                    cursor.sel += xx str.count;
+                }
             }
         }
 

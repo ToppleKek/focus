@@ -800,6 +800,7 @@ RENAMED_KEYBINDS :: Renamed_Keybind.[
         "delete_word_right_no_underscore",
         "duplicate_editor",
         "duplicate_lines",
+        "duplicate_lines_up", // @Myfork: I don't know if we are supposed to add new config options here, but it works.
         "escape",
         "go_to_line",
         "increase_font_size",
