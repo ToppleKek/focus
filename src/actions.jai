@@ -168,6 +168,7 @@ ACTIONS_EDITORS :: #run arrays_concat(ACTIONS_COMMON, string.[
     "add_cursors_to_line_starts",
     "duplicate_lines",
     "duplicate_lines_up",
+    "cpp_copy_member_func_declaration",
     "delete_line_and_go_up",
     "delete_line",
     "move_selected_lines_up",

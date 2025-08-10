@@ -326,6 +326,7 @@ active_editor_handle_event :: (editor: *Editor, buffer: *Buffer, event: Input.Ev
 
             case .duplicate_lines;                     duplicate_lines                  (editor, buffer); keep_selection = true;
             case .duplicate_lines_up;                  duplicate_lines_up               (editor, buffer); keep_selection = true;
+            case .cpp_copy_member_func_declaration;    cpp_copy_member_func_declaration (editor, buffer); keep_selection = true;
             case .move_selected_lines_up;              move_lines_up                    (editor, buffer); keep_selection = true;
             case .move_selected_lines_down;            move_lines_down                  (editor, buffer); keep_selection = true;
 
@@ -4015,6 +4016,7 @@ get_whole_line_ranges_for_cursors :: (editor: Editor, buffer: Buffer, merge_adja
     return line_ranges;
 }
 
+// @Myfork
 duplicate_lines    :: #bake_arguments actually_duplicate_lines(keep_selection = false);
 duplicate_lines_up :: #bake_arguments actually_duplicate_lines(keep_selection = true);
 
@@ -4049,6 +4051,112 @@ actually_duplicate_lines :: (editor: *Editor, buffer: *Buffer, keep_selection: b
     }
 
     editor.cursor_moved = true;
+}
+
+// @Myfork: This is really stupid!
+cpp_copy_member_func_declaration :: (editor: *Editor, buffer: *Buffer) {
+    cursor_pos := editor.cursors[0].pos;
+
+    // Find the name of the class.
+    class_name: string;
+    {
+        str: string;
+        str.data  = buffer.bytes.data;
+        str.count = cursor_pos;
+
+        // FIXME: @Myfork This will fail if the class name is something like my_class because this will find the "class" from the end of the class name.
+        // I could do some actual parsing instead of this garbage, but I really don't care to fix that.
+        class_index := find_index_from_right(str, "class ");
+        if class_index == -1 {
+            class_index = find_index_from_right(str, "struct ");
+        }
+
+        if class_index != -1 {
+            decl: string;
+            decl.data  = str.data + class_index;
+            decl.count = str.count - class_index;
+
+            decl = stop_at_any(decl, ":{");
+            if decl.count == 0 {
+                add_user_error("Couldn't find class/struct definition.");
+                return;
+            }
+
+            decl = trim_right(decl);
+
+            space_index := find_index_from_right(decl, #char " ");
+
+            if space_index == -1 {
+                class_name = decl;
+            } else {
+                class_name.data  = decl.data + space_index + 1;
+                class_name.count = decl.count - space_index - 1;
+                assert(class_name.count > 0);
+            }
+        }
+
+        if class_name.count == 0 {
+            add_user_error("Couldn't find class/struct name.");
+            return;
+        }
+    }
+
+    remove_substring_once_in_place :: (str: *string, substr: string, $from_left: bool) {
+        index := ifx from_left then find_index_from_left(str.*, substr) else find_index_from_right(str.*, substr);
+        if index == -1 then return;
+
+        if index + substr.count > str.count then return;
+        memcpy(str.data + index, str.data + index + substr.count, substr.count);
+        str.count -= substr.count;
+    }
+
+    replace_char_in_place :: (str: string, char: u8, replacement: u8, $from_left: bool) {
+        index := ifx from_left then find_index_from_left(str, char) else find_index_from_right(str, char);
+        if index == -1 then return;
+        str.data[index] = replacement;
+    }
+
+    line_number_of_cursor := offset_to_line(editor, buffer, cursor_pos);
+    line: string;
+    line.data  = buffer.bytes.data  + buffer.line_starts[line_number_of_cursor];
+    line.count = buffer.bytes.count - buffer.line_starts[line_number_of_cursor];
+
+    line = copy_string(stop_at_any(line, "\r\n"),, temp);
+    builder: String_Builder;
+    line = trim(line);
+
+    full_decl: string;
+
+    while line.count > 0 {
+        left, right := break_by_spaces(line);
+        if left != "static" && left != "virtual" {
+            if contains(left, #char "(") {
+                // NOTE: Trim any possible semicolon off left and right because left will contain the semicolon if there are no args in this function.
+                left = stop_at_any(left, ";");
+                replace_char_in_place(right, #char ";", #char " ", from_left = false);
+
+                print_to_builder(*builder, "%::%2 %3{\n\n}", class_name, left, right,, temp);
+                full_decl = builder_to_string(*builder,, temp);
+
+                // NOTE: Remove " override" (with a space) to prevent double spaces. But if for some reason the declaration is typo'd and it is like (...)override; then the second call will remove that... :)
+                remove_substring_once_in_place(*full_decl, " override", from_left = false);
+                remove_substring_once_in_place(*full_decl, "override", from_left = false);
+
+                break;
+            } else {
+                print_to_builder(*builder, "% ", left,, temp);
+            }
+        }
+
+        line = right;
+    }
+
+    if full_decl.count == 0 {
+        add_user_error("Failed to generate function definition. Is it well formed?");
+    } else {
+        os_clipboard_set_text(full_decl);
+        add_success_message("Copied function declaration to clipboard.");
+    }
 }
 
 move_lines_up :: (editor: *Editor, buffer: *Buffer) {
