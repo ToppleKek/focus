@@ -802,6 +802,7 @@ RENAMED_KEYBINDS :: Renamed_Keybind.[
         "duplicate_lines",
         "duplicate_lines_up", // @Myfork: I don't know if we are supposed to add new config options here, but it works.
         "cpp_copy_member_func_declaration", // @Myfork
+        "test_find_decl", // @Myfork
         "escape",
         "go_to_line",
         "increase_font_size",

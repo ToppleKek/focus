@@ -1,7 +1,7 @@
 main :: () {
     #if DEBUG && OS != .LINUX {
         UA :: #import "Unmapping_Allocator";
-        context.allocator = UA.get_unmapping_allocator();
+        // context.allocator = UA.get_unmapping_allocator();
     }
 
     focus_allocator = context.allocator;  // to be used as a default allocator where we need it
@@ -232,6 +232,7 @@ main :: () {
 
         workspace_update();
         finder_update();
+        decl_finder_update();
 
         for * editor : open_editors {
             using editor;
@@ -294,6 +295,7 @@ main :: () {
                 case .editors;                      handled = editors_handle_event(event);
                 case .build_panel;                  handled = editors_handle_event(event);
                 case .finder;                       handled = finder_handle_event(event);
+                case .decl_finder;                  handled = decl_finder_handle_event(event);
                 case .open_file_dialog;             handled = open_file_dialog_handle_event(event);
                 case .delete_file_dialog;           handled = dialog_handle_event(*delete_file_dialog, event);
                 case .go_to_line_dialog;            handled = go_to_line_dialog_handle_event(event);
@@ -966,6 +968,7 @@ Active_Global_Widget :: enum {
     kill_running_command_dialog;
     theme_dialog;
     language_dialog;
+    decl_finder;
 }
 
 Project_Dir :: struct {
@@ -1050,6 +1053,8 @@ focus_allocator: Allocator;
 #load "widgets/language_dialog.jai";
 #load "widgets/color_preview.jai";
 #load "widgets/color_picker.jai";
+
+#load "myfork/widgets/decl_finder.jai"; // @Myfork
 
 #load "langs/common.jai";
 #load "langs/jai.jai";

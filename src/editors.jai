@@ -327,6 +327,7 @@ active_editor_handle_event :: (editor: *Editor, buffer: *Buffer, event: Input.Ev
             case .duplicate_lines;                     duplicate_lines                  (editor, buffer); keep_selection = true;
             case .duplicate_lines_up;                  duplicate_lines_up               (editor, buffer); keep_selection = true;
             case .cpp_copy_member_func_declaration;    cpp_copy_member_func_declaration (editor, buffer); keep_selection = true;
+            case .test_find_decl;                      test_find_decl                   (editor, buffer); keep_selection = true;
             case .move_selected_lines_up;              move_lines_up                    (editor, buffer); keep_selection = true;
             case .move_selected_lines_down;            move_lines_down                  (editor, buffer); keep_selection = true;
 
@@ -4157,6 +4158,18 @@ cpp_copy_member_func_declaration :: (editor: *Editor, buffer: *Buffer) {
         os_clipboard_set_text(full_decl);
         add_success_message("Copied function declaration to clipboard.");
     }
+}
+
+test_find_decl :: (editor: *Editor, buffer: *Buffer) {
+    select_word(buffer, *editor.cursors[0]);
+    decl_finder_open_from_editor();
+    // text := get_selected_string(editor.cursors[0], buffer);
+    // tags := lookup_ctags(text);
+    // if tags {
+    //     add_success_message("Found % refs in files such as: %", (tags.*).count, (tags.*)[0].file);
+    // } else {
+    //     add_user_error("Couldn't find any tags for %", text);
+    // }
 }
 
 move_lines_up :: (editor: *Editor, buffer: *Buffer) {

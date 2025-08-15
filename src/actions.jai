@@ -169,6 +169,7 @@ ACTIONS_EDITORS :: #run arrays_concat(ACTIONS_COMMON, string.[
     "duplicate_lines",
     "duplicate_lines_up",
     "cpp_copy_member_func_declaration",
+    "test_find_decl",
     "delete_line_and_go_up",
     "delete_line",
     "move_selected_lines_up",

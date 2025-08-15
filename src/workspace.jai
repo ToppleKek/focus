@@ -190,8 +190,36 @@ workspace_update :: () {
             start_file_watcher();
             init_open_file_dialog();
             init_finder();
+            init_decl_finder();
         }
         return;
+    }
+
+    if file_list_ready && !ctags_scan_complete {
+        if get_completed_work(*ctags_thread_group).count != 0 {
+            log("Ctags scan complete. Here are the tags for APewCharacter:");
+            fucking_shit := lookup_ctags("APewCharacter");
+            if fucking_shit {
+                for fucking_shit.* {
+                    log("%", it);
+                }
+            } else {
+                log("(none)");
+            }
+
+            shutdown(*ctags_thread_group);
+            ctags_scan_complete = true;
+        } else if !ctags_thread_group.started {
+            log("File list is ready. Starting ctags scan.");
+            ctags_thread_group = Thread_Group.{};
+            init(*ctags_thread_group, num_threads = 2, group_proc = ctags_scan_threadproc);
+            ctags_thread_group.name    = "Ctags Scanner";
+            ctags_thread_group.logging = false;
+
+            start(*ctags_thread_group);
+
+            add_work(*ctags_thread_group, xx 0);
+        }
     }
 
     file_watcher_process_changes();
@@ -217,6 +245,7 @@ reload_workspace :: (automatic := false) {
 
     // Deinit things
     deinit_finder();
+    deinit_decl_finder();
     hide_build_panel();
     deinit_build_system();
     deinit_color_preview();
@@ -382,6 +411,11 @@ file_list_threadproc :: (group: *Thread_Group, thread: *Thread, work: *void) -> 
         if table_find_pointer(*file_list_table, full_path) return;
         array_add(*files_to_scan, full_path);
         table_add(*file_list_table, full_path, true);
+
+        // @Myfork lol
+        if ends_with(full_path, ".ctags") {
+            array_add(*ctag_files_to_load, full_path);
+        }
     }
 
     for unique_project_dirs visit_files(it, recursive = true, scan_pool_allocator, maybe_add_file_to_scan_list, visit_directories = true);
@@ -407,8 +441,14 @@ directory_scan_threadproc :: (group: *Thread_Group, thread: *Thread, work: *void
     return .CONTINUE;
 }
 
+ctags_scan_threadproc :: (group: *Thread_Group, thread: *Thread, work: *void) -> Thread_Continue_Status {
+    log("Entering ctags scan thread proc!");
+    for ctag_files_to_load load_ctag_file(it);
+    return .CONTINUE;
+}
 
 #scope_file
+#load "myfork/ctags.jai";
 
 get_scan_pool_allocator :: () -> Allocator {
     a: Allocator;
@@ -419,6 +459,7 @@ get_scan_pool_allocator :: () -> Allocator {
 
 file_list_thread_group:     Thread_Group;
 scanner_thread_group:       Thread_Group;
+ctags_thread_group:         Thread_Group;
 
 scan_memory_pool: Flat_Pool;
 files_to_scan: [..] string;
@@ -427,6 +468,10 @@ file_list_table: Table(string, bool);  // to avoid duplicates
 file_list_ready       := false;
 num_jobs_to_complete  := 0;
 num_jobs_completed    := 0;
+
+ctag_files_to_load: [..] string;
+num_ctags_jobs_to_complete := 0;
+num_ctags_jobs_completed   := 0;
 
 MAX_FILES_PER_JOB :: 50;   // we don't want to give huge jobs to threads because then it's more likely
                            // that some threads will finish faster than others and will sit around twiddling
@@ -437,3 +482,4 @@ MAX_FILES_PER_JOB :: 50;   // we don't want to give huge jobs to threads because
 
 // Other modules might want to know whether the scan is complete
 workspace_scan_complete := true;
+ctags_scan_complete := false;

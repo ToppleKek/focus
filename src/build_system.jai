@@ -243,6 +243,7 @@ show_build_panel :: () {
         case .delete_file_dialog;               #through;
         case .kill_running_command_dialog;      #through;
         case .finder;                           #through;
+        case .decl_finder;                      #through;
         case .go_to_line_dialog;                #through;
         case .switch_to_project_dialog;         #through;
         case .theme_dialog;                     #through;
