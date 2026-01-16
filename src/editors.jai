@@ -234,6 +234,7 @@ active_editor_handle_event :: (editor: *Editor, buffer: *Buffer, event: Input.Ev
         case .toggle_indent_guides;             action_toggle_indent_guides();
 
         case .copy_current_line_info;           action_copy_current_line_info           (editor, buffer);
+        case .copy_current_file_path;           action_copy_current_file_path           (editor. buffer_id);
         case .center_viewport_on_cursor;        action_center_viewport_on_cursor        (editor, buffer);
         case .move_cursor_to_viewport_center;   action_move_cursor_to_viewport_center   (editor, buffer);
         case .remove_additional_cursors;        remove_additional_cursors               (editor);
@@ -246,7 +247,10 @@ active_editor_handle_event :: (editor: *Editor, buffer: *Buffer, event: Input.Ev
         case .create_cursors_around;            create_cursors_around                   (editor, buffer);           keep_selection = true;
         case .strip_trailing_whitespace;        strip_trailing_whitespace               (buffer, editor.buffer_id); keep_selection = true;
 
-        case .choose_language;                  show_dialog                         (*language_dialog);
+        case .choose_language;                  show_dialog                             (*language_dialog);
+
+        case .convert_buffer_to_crlf;           action_convert_buffer_to_crlf           (buffer);
+        case .convert_buffer_to_lf;             action_convert_buffer_to_lf             (buffer);
 
         case .indentation_detect_from_buffer_contents;  indentation_detect_from_buffer_contents (buffer);
         case .indentation_use_defaults_for_buffer;      indentation_use_defaults_for_buffer     (buffer);
@@ -889,25 +893,43 @@ _find_pane_with_buffer_id :: (buffer_id: s64, current_pane: *Editor_Pane) -> *Ed
 #scope_export
 
 editors_show_existing_buffer :: (buffer_id: s64) -> found: bool {
-    _find_by_buffer_id :: (pane: *Editor_Pane, buffer_id: s64) -> *Editor_Pane, editor_index: s64 = -1 {
+    if buffer_id < 0 return false;
+
+    // Prefer the active editor if it already has the buffer open
+    if get_visible_buffer_id(editors.active_pane) == buffer_id return true;
+
+    _find_by_buffer_id :: (pane: *Editor_Pane, buffer_id: s64, prefer_visible := false) -> *Editor_Pane, editor_index: s64 = -1 {
         if !pane return null;
 
-        for pane.editor_ids {
-            editor := *open_editors[it];
-            if editor.buffer_id == buffer_id return pane, it_index;
+        if prefer_visible {
+            if get_visible_buffer_id(pane) == buffer_id return pane, pane.editor_index;
+        } else {
+            for pane.editor_ids {
+                editor := *open_editors[it];
+                if editor.buffer_id == buffer_id return pane, it_index;
+            }
         }
 
-        child1, editor_index := _find_by_buffer_id(pane.child1, buffer_id);
+        child1, editor_index := _find_by_buffer_id(pane.child1, buffer_id, prefer_visible);
         if child1 return child1, editor_index;
 
-        child2:, editor_index= _find_by_buffer_id(pane.child2, buffer_id);
+        child2:, editor_index= _find_by_buffer_id(pane.child2, buffer_id, prefer_visible);
         if child2 return child2, editor_index;
 
         return null;
     }
 
-    pane, editor_index := _find_by_buffer_id(editors.root, buffer_id);
-    if !pane return false;
+    // Prefer editors which are already visible
+    pane, editor_index := _find_by_buffer_id(editors.root, buffer_id, prefer_visible = true);
+
+    // If failed to find one, check if the current pane has the editor we need
+    pane, editor_index = _find_by_buffer_id(editors.active_pane, buffer_id);
+
+    // Finally, search among the hidden open editors in the whole tree
+    if !pane {
+        pane, editor_index = _find_by_buffer_id(editors.root, buffer_id);
+        if !pane return false;
+    }
 
     pane.editor_index = editor_index;
     activate_pane(pane);
@@ -918,6 +940,15 @@ editors_show_existing_buffer :: (buffer_id: s64) -> found: bool {
 get_visible_editor_id :: inline (pane: *Editor_Pane) -> s64 {
     if !pane || !pane.editor_ids return -1;
     return pane.editor_ids[pane.editor_index];
+}
+
+get_visible_buffer_id :: (pane: *Editor_Pane) -> s64 {
+    editor_id := get_visible_editor_id(pane);
+    if editor_id >= 0 {
+        editor := *open_editors[editor_id];
+        return editor.buffer_id;
+    }
+    return -1;
 }
 
 action_center_viewport_on_cursor :: (using editor: *Editor, buffer: Buffer) {
@@ -1457,7 +1488,7 @@ open_search_bar :: (using editor: *Editor, buffer: Buffer, requested_mode: Searc
     if cursors.count == 1 {
         cursor := cursors[0];
         selected_text := get_selected_string(cursor, buffer);
-        if selected_text && offset_to_line(editor, buffer, cursor.pos) == offset_to_line(editor, buffer, cursor.sel) {
+        if selected_text && offset_to_real_line(buffer, cursor.pos) == offset_to_real_line(buffer, cursor.sel) {
             replace_text(*input, selected_text);
         }
     }
@@ -1976,6 +2007,8 @@ action_go_to_next_buffer :: (event: *Input.Event) {
     if editor_index < 0 || !editor_ids return;
     editor_index = (editor_index + 1) % editor_ids.count;
 
+    make_editor_active(editor_ids[editor_index]);
+
     if event then activate_show_pane_editors_action(event.modifier_flags, editors.active_pane);
 }
 
@@ -1988,6 +2021,8 @@ action_go_to_previous_buffer :: (event: *Input.Event) {
     if editor_index < 0 || !editor_ids return;
     editor_index -= 1;
     if editor_index < 0 then editor_index = editor_ids.count - 1;
+
+    make_editor_active(editor_ids[editor_index]);
 
     if event then activate_show_pane_editors_action(event.modifier_flags, editors.active_pane);
 }
@@ -2261,10 +2296,12 @@ get_lang_from_path :: (full_path: string) -> Buffer.Lang {
         case "lua";             lang = .Lua;
         case "java";            lang = .Java;
         case "odin";            lang = .Odin;
+        case "ps1";             lang = .Powershell;
         case "py";              lang = .Python;
         case "rpy";             lang = .RenPy;
         case "rs";              lang = .Rust;
         case "json";            lang = .Json;
+        case "toml";            lang = .Toml;
         case "yang";            lang = .Yang;
         case "zig";             lang = .Zig;
         case "tal";             lang = .Uxntal;
@@ -2354,15 +2391,15 @@ select_line :: (cursor: *Cursor, buffer: Buffer) {
     cursor.pos = get_real_line_start_offset(buffer, end_line+1);
 }
 
-scan_through_similar_chars_on_the_left :: inline (using buffer: Buffer, offset: s32, char_type: Char_Type = .none, skip_one_space := true) -> offset: s32, moved_through: Char_Type {
+scan_through_similar_chars_on_the_left :: inline (using buffer: Buffer, offset: s32, char_type: Char_Type = .none, skip_one_space := true, stop_at_newline := true) -> offset: s32, moved_through: Char_Type, stopped_at_newline: bool {
     line_start_offset := line_starts[offset_to_real_line(buffer, offset)];
-    offset, moved_through := scan_through_similar_chars_on_the_left(to_view(buffer.bytes), line_start_offset, offset, char_type, skip_one_space);
-    return offset, moved_through;
+    offset, moved_through, stopped_at_newline := scan_through_similar_chars_on_the_left(to_view(buffer.bytes), line_start_offset, offset, char_type, skip_one_space, stop_at_newline);
+    return offset, moved_through, stopped_at_newline;
 }
 
-scan_through_similar_chars_on_the_right :: inline (buffer: Buffer, offset: s32, char_type: Char_Type = .none, skip_one_space := true) -> offset: s32, moved_through: Char_Type {
-    offset, moved_through := scan_through_similar_chars_on_the_right(to_view(buffer.bytes), offset, char_type, skip_one_space);
-    return offset, moved_through;
+scan_through_similar_chars_on_the_right :: inline (buffer: Buffer, offset: s32, char_type: Char_Type = .none, skip_one_space := true, stop_at_newline := true) -> offset: s32, moved_through: Char_Type, stopped_at_newline: bool {
+    offset, moved_through, stopped_at_newline := scan_through_similar_chars_on_the_right(to_view(buffer.bytes), offset, char_type, skip_one_space, stop_at_newline);
+    return offset, moved_through, stopped_at_newline;
 }
 
 cursors_start_blinking :: inline () {
@@ -2742,7 +2779,7 @@ align_cursors :: (using editor: *Editor, buffer: *Buffer) {
         if line_wrap_is_active(editor) then rescan_for_wrapped_lines(editor, buffer);
 
         // Keep selections aligned
-        if it.pos < it.sel Swap(*it.pos, *it.sel); // Shouldn't be necessary since it's already reverted in the merge step
+        if it.pos < it.sel swap(*it.pos, *it.sel); // Shouldn't be necessary since it's already reverted in the merge step
         it.pos += xx (str_before.count + str_after.count);
         it.sel = it.pos - largest_selection;
         offset_delta += str_before.count + str_after.count;
@@ -3192,6 +3229,9 @@ move_cursor_left :: (cursor: *Cursor, editor: *Editor, using buffer: *Buffer, by
 
     if cursor.pos == 0  return;
 
+    moved_through : Char_Type = ---;
+    stopped_at_newline := false;
+
     if #complete by == {
         case .by_character;
             cursor.pos = prev_char_offset(bytes, cursor.pos);
@@ -3205,12 +3245,10 @@ move_cursor_left :: (cursor: *Cursor, editor: *Editor, using buffer: *Buffer, by
             cursor.pos = scan_through_similar_chars_on_the_left(buffer, cursor.pos, skip_one_space = is_single_cursor);
 
         case .through_word_throttled;
-            moved_through : Char_Type = ---;
-            cursor.pos, moved_through = scan_through_similar_chars_on_the_left(buffer, cursor.pos, skip_one_space = is_single_cursor);
-            if !(moved_through & (.word | .number))  cursor.pos = scan_through_similar_chars_on_the_left(buffer, cursor.pos, skip_one_space = false);
+            cursor.pos, moved_through, stopped_at_newline = scan_through_similar_chars_on_the_left(buffer, cursor.pos, skip_one_space = is_single_cursor);
+            if !(moved_through & (.word | .number) || stopped_at_newline)  cursor.pos = scan_through_similar_chars_on_the_left(buffer, cursor.pos, skip_one_space = false);
 
         case .through_word;
-            moved_through : Char_Type = ---;
             cursor.pos, moved_through = scan_through_similar_chars_on_the_left(buffer, cursor.pos, skip_one_space = false);
             while cursor.pos > 0 && moved_through != .word {
                 cursor.pos, moved_through = scan_through_similar_chars_on_the_left(buffer, cursor.pos, skip_one_space = false);
@@ -3239,6 +3277,9 @@ move_cursor_right :: (cursor: *Cursor, editor: *Editor, using buffer: *Buffer, b
 
     if cursor.pos >= bytes.count  return;
 
+    moved_through : Char_Type = ---;
+    stopped_at_newline := false;
+
     if #complete by == {
         case .by_character;
             cursor.pos = next_char_offset(bytes, cursor.pos);
@@ -3252,12 +3293,10 @@ move_cursor_right :: (cursor: *Cursor, editor: *Editor, using buffer: *Buffer, b
             cursor.pos = scan_through_similar_chars_on_the_right(buffer, cursor.pos, skip_one_space = is_single_cursor);
 
         case .through_word_throttled;
-            moved_through : Char_Type = ---;
-            cursor.pos, moved_through = scan_through_similar_chars_on_the_right(buffer, cursor.pos, skip_one_space = is_single_cursor);
-            if !(moved_through & (.word | .number))  cursor.pos = scan_through_similar_chars_on_the_right(buffer, cursor.pos, skip_one_space = false);
+            cursor.pos, moved_through, stopped_at_newline = scan_through_similar_chars_on_the_right(buffer, cursor.pos, skip_one_space = is_single_cursor);
+            if !(moved_through & (.word | .number) || stopped_at_newline)  cursor.pos = scan_through_similar_chars_on_the_right(buffer, cursor.pos, skip_one_space = false);
 
         case .through_word;
-            moved_through : Char_Type = ---;
             cursor.pos, moved_through = scan_through_similar_chars_on_the_right(buffer, cursor.pos, skip_one_space = false);
             while cursor.pos < bytes.count && moved_through != .word {
                 cursor.pos, moved_through = scan_through_similar_chars_on_the_right(buffer, cursor.pos, skip_one_space = false);
@@ -3914,7 +3953,7 @@ add_cursors_to_line_starts :: (using editor: *Editor, buffer: Buffer) {
     pos: s32;
 
     for * line_range : line_ranges {
-        line_num := offset_to_line(editor, buffer, line_range.start);
+        line_num := offset_to_real_line(buffer, line_range.start);
         while true {
             pos = buffer.line_starts[line_num];
             if pos >= line_range.end break;
@@ -4576,10 +4615,12 @@ toggle_comment :: (editor: *Editor, buffer: *Buffer, is_fallback := false) {
         case .Lua;
             comment = "--";
 
+        case .Powershell;   #through;
         case .Python;       #through;
         case .RenPy;        #through;
         case .Shell;        #through;
         case .Focus_Config; #through;
+        case .Toml        ; #through;
         case .Focus_Theme;
             comment = "#";
 
@@ -4819,6 +4860,10 @@ toggle_block_comment :: (editor: *Editor, buffer: *Buffer, is_fallback := false)
             comment_start = "<!---";
             comment_end   = "--->";
 
+        case .Powershell;
+            comment_start = "<#";
+            comment_end   = "#>";
+
         // Muilti-line comments are not supported, fallback to multiple single-line comments
         case .Batch;        #through;
         case .Python;       #through; // Yes, we could use multi-line strings but they have to be properly indented, so let's just fallback to several single-line comments and not to create more headache
@@ -4827,6 +4872,7 @@ toggle_block_comment :: (editor: *Editor, buffer: *Buffer, is_fallback := false)
         case .Zig;          #through;
         case .Ini;          #through;
         case .Focus_Config; #through;
+        case .Toml;         #through;
         case .Focus_Theme;
             assert(!is_fallback, "Infinite recursion");
             toggle_comment(editor, buffer, true);
@@ -5007,6 +5053,19 @@ action_copy_current_line_info :: (using editor: *Editor, buffer: Buffer) {
     add_success_message("String '%' copied to clipboard", line_info, dismiss_in_seconds = 5);
 }
 
+action_copy_current_file_path :: (buffer_id: s64) {
+    buffer := *open_buffers[buffer_id];
+
+    if !buffer.has_file || !buffer.file.full_path {
+        add_user_warning("Buffer has no associated file", dismiss_in_seconds = 5);
+        return;
+    }
+
+    os_clipboard_set_text(buffer.file.full_path);
+
+    add_success_message("Copied file path to clipboard:\n%", buffer.file.full_path);
+}
+
 #scope_export
 
 Editor :: struct {
@@ -5139,10 +5198,10 @@ Editor_Pane :: struct {
     child1: *Editor_Pane;
     child2: *Editor_Pane;
 
-    #place child1; left:   *Editor_Pane;
-    #place child2; right:  *Editor_Pane;
-    #place child1; top:    *Editor_Pane;
-    #place child2; bottom: *Editor_Pane;
+    #overlay (child1) left:   *Editor_Pane;
+    #overlay (child2) right:  *Editor_Pane;
+    #overlay (child1) top:    *Editor_Pane;
+    #overlay (child2) bottom: *Editor_Pane;
 
     Layout :: enum u8 {
         single      :: 0;

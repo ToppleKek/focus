@@ -202,7 +202,7 @@ parse_identifier_or_raw_string :: (using tokenizer: *Rust_Tokenizer, token: *Tok
 
     // Maybe it's a keyword
     if identifier_str.count <= MAX_KEYWORD_LENGTH {
-        ok, kw_token := table_find_new(*KEYWORD_MAP, identifier_str);
+        ok, kw_token := table_find(*KEYWORD_MAP, identifier_str);
         if ok { token.type = kw_token.type; token.keyword = kw_token.keyword; return; }
     }
 
@@ -528,15 +528,15 @@ parse_slash_or_comment :: (using tokenizer: *Rust_Tokenizer, token: *Token) {
             token.type = .multiline_comment;
             t += 1;
             num_open_comments := 0;
-            while t + 1 < max_t {
-                if t.* == #char "*" && << (t + 1) == #char "/" {
+            while t < max_t {
+                if t.* == #char "*" && (t + 1) < max_t && (t + 1).* == #char "/" {
                     if num_open_comments == 0 {
                         t += 2;
                         break;
                     } else {
                         num_open_comments -= 1;
                     }
-                } else if t.* == #char "/" && << (t + 1) == #char "*" {
+                } else if t.* == #char "/" && (t + 1) < max_t && (t + 1).* == #char "*" {
                     num_open_comments += 1;
                     t += 1;
                 }
@@ -700,4 +700,3 @@ MAX_KEYWORD_LENGTH :: #run -> s32 {
     for VALUE_KEYWORDS { if it.count > result then result = it.count; }
     return xx result;
 }
-

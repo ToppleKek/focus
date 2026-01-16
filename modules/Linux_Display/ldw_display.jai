@@ -549,9 +549,6 @@ wl_window_handle_resize :: (w: *Wayland_Window, width: s32, height: s32) {
     if w.base.gl.egl.native
         wl_egl_window_resize(w.base.gl.egl.native, w.buffer_width, w.buffer_height, 0, 0);
 
-    wl_surface.damage(w.handle, 0, 0, w.window_width, w.window_height);
-    wl_surface.commit(w.handle);
-
     Input.add_resize_record(xx w, xx w.buffer_width, xx w.buffer_height);
 }
 
@@ -592,7 +589,7 @@ wl_create_window :: (display: *Display, window: *Window, width: int, height: int
     w.window_width = xx width;
     w.window_height = xx height;
 
-    found, cursor := table_find_new(*d.cursors, "default");
+    found, cursor := table_find(*d.cursors, "default");
     if !found {
         for d.cursors {
             cursor = it;
@@ -669,7 +666,7 @@ wl_set_cursor_from_theme :: (window: *Window, name: string) {
     wl_check_usage(null, window);
 
     w: *Wayland_Window = window;
-    found, cursor := table_find_new(*w.display.cursors, name);
+    found, cursor := table_find(*w.display.cursors, name);
     if found {
         w.cursor = cursor;
         refresh_cursor(w);
@@ -864,7 +861,7 @@ states_to_string :: (arr: *wl_array) -> string {
     append(*sb, "[");
     for wl_array_each(u32, arr) {
         if it_index append(*sb, ", ");
-        if <<it == {
+        if it.* == {
             case xdg_toplevel.state_maximized; append(*sb, "maximized");
             case xdg_toplevel.state_fullscreen; append(*sb, "fullscreen");
             case xdg_toplevel.state_resizing; append(*sb, "resizing");
@@ -873,7 +870,7 @@ states_to_string :: (arr: *wl_array) -> string {
             case xdg_toplevel.state_tiled_right; append(*sb, "tiled_right");
             case xdg_toplevel.state_tiled_top; append(*sb, "tiled_top");
             case xdg_toplevel.state_tiled_bottom; append(*sb, "tiled_bottom");
-            case; print_to_builder(*sb, "unknown(%)", <<it);
+            case; print_to_builder(*sb, "unknown(%)", it.*);
         }
     }
     append(*sb, "]");

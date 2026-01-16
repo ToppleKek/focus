@@ -108,7 +108,7 @@ parse_identifier :: (using tokenizer: *Tokenizer, token: *Token) {
 
     // Maybe it's a keyword
     if identifier_str.count <= MAX_KEYWORD_LENGTH {
-        ok, kw_token := table_find_new(*KEYWORD_MAP, identifier_str);
+        ok, kw_token := table_find(*KEYWORD_MAP, identifier_str);
         if ok { token.type = kw_token.type; token.keyword = kw_token.keyword; return; }
     }
 }
@@ -239,8 +239,8 @@ parse_string_literal :: (using tokenizer: *Tokenizer, token: *Token) {
 
     t += 1;
     while t < max_t {
-        if <<t == #char "\"" && !escape_seen break;
-        escape_seen = !escape_seen && <<t == #char "\\";
+        if t.* == #char "\"" && !escape_seen break;
+        escape_seen = !escape_seen && t.* == #char "\\";
         t += 1;
     }
     if t >= max_t return;
@@ -255,8 +255,8 @@ parse_backtick_string_literal :: (using tokenizer: *Tokenizer, token: *Token) {
 
     t += 1;
     while t < max_t {
-        if <<t == #char "`" && !escape_seen break;
-        escape_seen = !escape_seen && <<t == #char "\\";
+        if t.* == #char "`" && !escape_seen break;
+        escape_seen = !escape_seen && t.* == #char "\\";
         t += 1;
     }
     if t >= max_t return;
@@ -329,8 +329,8 @@ parse_slash_or_comment :: (using tokenizer: *Tokenizer, token: *Token) {
         case #char "*";
             token.type = .multiline_comment;
             t += 1;
-            while t + 1 < max_t {
-                if t.* == #char "*" && << (t + 1) == #char "/" {
+            while t < max_t {
+                if t.* == #char "*" && (t + 1) < max_t && (t + 1).* == #char "/" {
                   t += 2;
                   break;
                 }
@@ -341,14 +341,14 @@ parse_slash_or_comment :: (using tokenizer: *Tokenizer, token: *Token) {
             t += 1;
             num_open_comments := 0;
             while t + 1 < max_t {
-                if << t == #char "+" && << (t + 1) == #char "/" {
+                if t.* == #char "+" && (t + 1).* == #char "/" {
                     if num_open_comments == 0 {
                         t += 2;
                         break;
                     } else {
                         num_open_comments -= 1;
                     }
-                } else if << t == #char "/" && << (t + 1) == #char "+" {
+                } else if t.* == #char "/" && (t + 1).* == #char "+" {
                     num_open_comments += 1;
                     t += 1;
                 }

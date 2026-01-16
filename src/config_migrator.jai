@@ -274,7 +274,7 @@ DONE
                 if !table_contains(*config_info.colors_present, added.name) && valid_version(added.version, config_info.version) {
                     value := added.default;
                     if added.value_from {
-                        success, source_value := table_find_new(*config_info.colors_present, added.value_from);
+                        success, source_value := table_find(*config_info.colors_present, added.value_from);
                         if success && source_value then value = source_value;
                     }
                     padding := get_tmp_spaces(COLOR_VALUES_INDENT - added.name.count - 1);
@@ -406,7 +406,7 @@ DONE
                                         if valid_version(%3, config_info.version) {
                                             force_value_from := "%4";
                                             if force_value_from {
-                                                success, source_value := table_find_new(*config_info.colors_present, force_value_from);
+                                                success, source_value := table_find(*config_info.colors_present, force_value_from);
                                                 if success && source_value then color_value = source_value;
                                             }
                                             padding  := get_tmp_spaces(COLOR_VALUES_INDENT - "%2".count - 1);
@@ -517,7 +517,7 @@ ADDED_SETTINGS :: Added_Setting.[
     .{ 16, "scrollbar_fade_out_delay_seconds",                   "1.0   # how long the scrollbar stays visible after scrolling" },
     .{ 16, "scroll_behind_first_line",                           "false" },
     .{ 18, "active_pane_border_width",                           "1.0   # set the width to 0.0 to disable" },
-    .{ 18, "inactive_pane_dim_overlay_opacity",                  "0.1   # controls how dim the inactive panes should be" },
+    .{ 18, "inactive_pane_dim_overlay_opacity",                  "0.0   # controls how dim the inactive panes should be" },
 
     .{ 19, "comment_highlight_words1",                           "TODO, TODO:, NOTE, NOTE:  # a comma-separated list of words to highlight within comments using the color `code_comment_highlight1`" },
     .{ 19, "comment_highlight_words2",                           "# words to highlight using `code_comment_highlight2`" },
@@ -529,6 +529,10 @@ ADDED_SETTINGS :: Added_Setting.[
     .{ 23, "closing_last_editor_in_pane_should_close_pane",      "true"  },
     .{ 23, "closing_last_editor_should_exit_program",            "false" },
     .{ 23, "show_pane_numbers",                                  "false" },
+
+    .{ 24, "show_tab_characters_in_selection",                   "true" },
+
+    .{ 25, "line_endings",                                       "preserve  # options: lf, crlf, preserve" },
 ];
 
 RENAMED_SETTINGS :: Renamed_Setting.[
@@ -1396,7 +1400,7 @@ scrollbar_fade_in_sensitivity:                   10.0  # controls when the scrol
 scrollbar_fade_out_delay_seconds:                1.0   # how long the scrollbar stays visible after scrolling
 scroll_behind_first_line:                        false
 active_pane_border_width:                        1.0   # set the width to 0.0 to disable
-inactive_pane_dim_overlay_opacity:               0.1   # controls how dim the inactive panes should be
+inactive_pane_dim_overlay_opacity:               0.0   # controls how dim the inactive panes should be
 comment_highlight_words1:                        TODO, TODO:, NOTE, NOTE:  # a comma-separated list of words to highlight within comments using the color `code_comment_highlight1`
 comment_highlight_words2:                        # words to highlight using `code_comment_highlight2`
 comment_highlight_words3:                        # words to highlight using `code_comment_highlight3`
@@ -1406,6 +1410,8 @@ cursor_position_after_jump:                      0.45  # controls where the curs
 closing_last_editor_in_pane_should_close_pane:   true
 closing_last_editor_should_exit_program:         false
 show_pane_numbers:                               false
+show_tab_characters_in_selection:                true
+line_endings:                                    preserve  # options: lf, crlf, preserve
 
 FOCUS_CONFIG
 
@@ -1545,7 +1551,7 @@ scrollbar_fade_in_sensitivity:                   10.0  # controls when the scrol
 scrollbar_fade_out_delay_seconds:                1.0   # how long the scrollbar stays visible after scrolling
 scroll_behind_first_line:                        false
 active_pane_border_width:                        1.0   # set the width to 0.0 to disable
-inactive_pane_dim_overlay_opacity:               0.1   # controls how dim the inactive panes should be
+inactive_pane_dim_overlay_opacity:               0.0   # controls how dim the inactive panes should be
 comment_highlight_words1:                        TODO, TODO:, NOTE, NOTE:  # a comma-separated list of words to highlight within comments using the color `code_comment_highlight1`
 comment_highlight_words2:                        # words to highlight using `code_comment_highlight2`
 comment_highlight_words3:                        # words to highlight using `code_comment_highlight3`
@@ -1555,6 +1561,8 @@ cursor_position_after_jump:                      0.45  # controls where the curs
 closing_last_editor_in_pane_should_close_pane:   true
 closing_last_editor_should_exit_program:         false
 show_pane_numbers:                               false
+show_tab_characters_in_selection:                true
+line_endings:                                    preserve  # options: lf, crlf, preserve
 
 FOCUS_CONFIG
 
@@ -1932,7 +1940,7 @@ scrollbar_fade_in_sensitivity:                   10.0  # controls when the scrol
 scrollbar_fade_out_delay_seconds:                1.0   # how long the scrollbar stays visible after scrolling
 scroll_behind_first_line:                        false
 active_pane_border_width:                        1.0   # set the width to 0.0 to disable
-inactive_pane_dim_overlay_opacity:               0.1   # controls how dim the inactive panes should be
+inactive_pane_dim_overlay_opacity:               0.0   # controls how dim the inactive panes should be
 comment_highlight_words1:                        TODO, TODO:, NOTE, NOTE:  # a comma-separated list of words to highlight within comments using the color `code_comment_highlight1`
 comment_highlight_words2:                        # words to highlight using `code_comment_highlight2`
 comment_highlight_words3:                        # words to highlight using `code_comment_highlight3`
@@ -1942,6 +1950,8 @@ cursor_position_after_jump:                      0.45  # controls where the curs
 closing_last_editor_in_pane_should_close_pane:   true
 closing_last_editor_should_exit_program:         false
 show_pane_numbers:                               false
+show_tab_characters_in_selection:                true
+line_endings:                                    preserve  # options: lf, crlf, preserve
 
 [[keymap]]
 # ...

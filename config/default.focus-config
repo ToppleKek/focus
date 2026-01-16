@@ -89,7 +89,7 @@ scrollbar_fade_in_sensitivity:                      10.0  # controls when the sc
 scrollbar_fade_out_delay_seconds:                   1.0   # how long the scrollbar stays visible after scrolling
 
 active_pane_border_width:                           1.0   # set the width to 0.0 to disable
-inactive_pane_dim_overlay_opacity:                  0.1   # controls how dim the inactive panes should be
+inactive_pane_dim_overlay_opacity:                  0.0   # controls how dim the inactive panes should be
 
 comment_highlight_words1:                           TODO, TODO:, NOTE, NOTE:  # a comma-separated list of words to highlight within comments using the color `code_comment_highlight1`
 comment_highlight_words2:                           # words to highlight using `code_comment_highlight2`
@@ -100,6 +100,8 @@ enable_temporary_editors:                           true  # when enabled, any ed
 cursor_position_after_jump:                         0.45  # controls where the cursor ends up relatively to the viewport after jumping to a search result or an error. 0.0 is top of the screen, 1.0 - bottom, 0.5 - center
 closing_last_editor_in_pane_should_close_pane:      true
 closing_last_editor_should_exit_program:            false
+
+line_endings:                                       preserve  # options: lf, crlf, preserve
 
 # NOTE: some settings can be specified for a subset of files, based on their language or a wildcard,
 # for example:
@@ -154,6 +156,8 @@ draw_indent_guides:                                 false
 # %FILE_DIR%  - the directory of the currently active file
 # %FILE_NAME% - current file name, with extension
 # %FILE_NAME_NO_EXTENSION% - current file name, without extension
+# %FILE_LINE%   - line under cursor in current file
+# %FILE_COLUMN% - column under cursor in current file
 # %BUILD_WORKING_DIR%  - working dir of the build command
 # %RUN_WORKING_DIR%    - working dir of the run command
 # %PROJECT_CONFIG_DIR% - the dir containing the active project config file

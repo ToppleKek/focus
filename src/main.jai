@@ -6,10 +6,12 @@ main :: () {
 
     focus_allocator = context.allocator;  // to be used as a default allocator where we need it
 
-    cpu_info = get_cpu_info();
+    #if CPU == .X64 {
+        cpu_info = get_cpu_info();
 
-    // Meow hash relies on AES instruction support, so fall back to a standard hash function
-    if !check_feature(cpu_info.feature_leaves, x86_Feature_Flag.AES) then calculate_hash = fallback_hash;
+        // Meow hash relies on AES instruction support, so fall back to a standard hash function
+        if !check_feature(cpu_info.feature_leaves, x86_Feature_Flag.AES) then calculate_hash = fallback_hash;
+    }
 
     platform_setup();
 
@@ -169,7 +171,9 @@ main :: () {
     init_logger();
     defer deinit_logger();  // closes log file handles
 
-    if !check_feature(cpu_info.feature_leaves, x86_Feature_Flag.AES) then log_error("CPU doesn't support AES instructions. A slower hash function will be used.");
+    #if CPU == .X64 {
+        if !check_feature(cpu_info.feature_leaves, x86_Feature_Flag.AES) then log_error("CPU doesn't support AES instructions. A slower hash function will be used.");
+    }
 
     repetition_tester();  // used for development. No-op in production
 
@@ -317,15 +321,15 @@ main :: () {
                 handled = maybe_execute_a_build_command(action);
             }
 
-            if handled && event.type == .KEYBOARD then num_text_input_events_to_ignore = event.text_input_count;
-            #if OS == .MACOS {
-                // @Hack:
-                // On macOS the shortcut Cmd-Q seems to be handled by the system.
-                // If the user presses Cmd-Q, we first get a normal .KEYBOARD and a .TEXT_INPUT events, then a .QUIT event.
-                // Since we're not handling the .KEYBOARD event, we're not ignoring the following .TEXT_INPUT, which
-                // sometimes results in the letter q being pressed.
-                // Unless there's a good simple way to avoid that we have to filter it out ourselves
-                if event.type == .KEYBOARD && event.key_code == #char "Q" && event.key_pressed && event.cmd_meta_pressed then num_text_input_events_to_ignore += 1;
+            // Ignore text input events if either we've handled a keyboard event for the same combo or the user holds Ctrl/Cmd/Meta
+            // (can't ignore when Alt/Opt is held because this is sometimes used to type characters)
+            if event.type == .KEYBOARD {
+                if handled {
+                    num_text_input_events_to_ignore = event.text_input_count;
+                } else {
+                    if event.modifier_flags.packed & Mods.{ctrl_pressed=true, cmd_meta_pressed=true}.packed then num_text_input_events_to_ignore = event.text_input_count;
+                    if event.modifier_flags.alt_pressed then num_text_input_events_to_ignore = 0;
+                }
             }
 
             handled = key_sequence_input_process_event(event, handled);
@@ -414,6 +418,7 @@ handle_common_editor_action :: (action: Action_Editors, placement: Editor_Placem
 
         case .show_commands;                                    show_dialog(*commands_dialog);                      return true;
         case .toggle_fullscreen;                                action_toggle_fullscreen();                         return true;
+        case .toggle_status_bar;                                show_status_bar = !show_status_bar;                 return true;
 
         case .cursor_go_back;                                   action_cursor_go_back();                            return true;
         case .cursor_go_forward;                                action_cursor_go_forward();                         return true;
@@ -491,6 +496,8 @@ init_fonts_and_dependent_things :: () {
 
     Simp.set_anti_aliasing(config.style.font_anti_aliasing);
     Simp.set_hinting(config.style.font_hinting);
+
+    Simp.set_show_tab_characters_in_selection(config.settings.show_tab_characters_in_selection);
 
     font_main_size = clamp(font_main_size, MIN_FONT_SIZE, MAX_FONT_SIZE);
     font_ui_size   = clamp(font_ui_size  , MIN_FONT_SIZE, MAX_FONT_SIZE);
@@ -1001,7 +1008,9 @@ BUILTIN_THEMES :: #run -> [] Builtin_Theme {
 // A list of files drag-and-dropped into the editor (for the drawing code to use)
 just_dropped_files: [] string;
 
-cpu_info: Cpu_X86;
+#if CPU == .X64 {
+    cpu_info: Cpu_X86;
+}
 
 focus_allocator: Allocator;
 
@@ -1071,8 +1080,10 @@ focus_allocator: Allocator;
 #load "langs/java.jai";
 #load "langs/js.jai";
 #load "langs/json.jai";
+#load "langs/toml.jai";
 #load "langs/lua.jai";
 #load "langs/odin.jai";
+#load "langs/powershell.jai";
 #load "langs/python.jai";
 #load "langs/renpy.jai";
 #load "langs/shell.jai";
@@ -1101,6 +1112,10 @@ focus_allocator: Allocator;
     #assert false, "Unsupported OS";
 }
 
+#if CPU == .X64 {
+    #import "Machine_X64";
+}
+
 using Basic :: #import "Basic"()(MEMORY_DEBUGGER = DEBUG, TEMP_ALLOCATOR_POISON_FREED_MEMORY = false);
 #import "Atomics";
 #import "Compiler";
@@ -1109,7 +1124,6 @@ using Basic :: #import "Basic"()(MEMORY_DEBUGGER = DEBUG, TEMP_ALLOCATOR_POISON_
 #import "File_Watcher";
 #import "Flat_Pool";
 #import "Math";
-#import "Machine_X64";
 #import "Process";
 #import "Reflection";
 #import "Sloppy_Math";
@@ -1192,7 +1206,17 @@ DEBUG_MEMORY_LEAKS :: false;
      * EXTREME JANK - nuke once the Jai standard library no longer depends on libc
      */
     focus_memcpy :: (dst: *void, src: *void, size: s64) -> *void #foreign libc "memmove";
-    libc :: #system_library "libc";
+
+    // For now this is commented out, just in case this is needed in the future I will leave it here :)
+    // Does not compile otherwise since jai beta 0.2.022 added "libc" in module "System"
+    //
+    // libc :: #system_library "libc";
 } else {
     focus_memcpy :: memcpy;
+}
+
+#if OS == .MACOS && CPU == .ARM64 {
+    // Freetype needs this when linking. I don't know...
+    #program_export
+    __chkstk_darwin :: () #c_call {}
 }

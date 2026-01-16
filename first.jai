@@ -40,6 +40,12 @@ build :: () {
     build_dir := "build_debug";
     options.output_executable_name = "focus";
 
+    success:, plugins_to_create:, args = parse_plugin_arguments(args);
+    if !success {
+        compiler_report("Failed to parse plugin arguments.\n");
+        exit(1);
+    }
+
     for arg: args {
         if arg == {
           case "release";
@@ -83,7 +89,18 @@ build :: () {
         }
     }
 
-    compiler_begin_intercept(w);
+    success = init_plugins(plugins_to_create, *plugins, w);
+    if !success {
+        compiler_report("A plugin init() failed. Exiting.\n");
+        exit(1);
+    }
+
+    intercept_flags: Intercept_Flags;
+    for plugins if it.before_intercept it.before_intercept(it, *intercept_flags);
+
+    compiler_begin_intercept(w, intercept_flags);
+
+    for plugins if it.add_source it.add_source(it);
 
     add_build_file("src/main.jai", w);
 
@@ -106,6 +123,9 @@ build :: () {
     while true {
         message := compiler_wait_for_message();
         if message.workspace != w continue;
+
+        for plugins if it.message it.message(it, message);
+
         if message.kind == {
             case .TYPECHECKED;
                 if options.output_type != .NO_OUTPUT {
@@ -145,6 +165,9 @@ build :: () {
 
     compiler_end_intercept(w);
 
+    for plugins if it.finish   it.finish  (it);
+    for plugins if it.shutdown it.shutdown(it);
+
     // Don't try to set icon or manifest if we failed compilation
     if failed then return;
 
@@ -152,7 +175,7 @@ build :: () {
         exe_path := tprint("%/%.exe", build_dir, options.output_executable_name);
 
         ico_data := create_ico_file_from_bitmap_filename("images/focus.png");
-        success := set_icon_by_data(exe_path, ico_data);
+        success = set_icon_by_data(exe_path, ico_data);
         if !success {
             log_error("ERROR: Couldn't set icon for '%'\n", exe_path);
         }
@@ -179,7 +202,8 @@ build :: () {
         run_command("ln", "-s", "/Applications", DMG_DIR);
 
         // Generate a .DMG using Disk Utility
-        run_command("hdiutil", "create", "-volname", tprint("Focus %", VERSION), "-srcfolder", DMG_DIR, "-ov", "-format", "UDZO", tprint("Focus-%-Intel.dmg", VERSION));
+        file_name := ifx CPU == .X64 tprint("Focus-%-Intel.dmg", VERSION) else tprint("Focus-%-Apple.dmg", VERSION);
+        run_command("hdiutil", "create", "-volname", tprint("Focus %", VERSION), "-srcfolder", DMG_DIR, "-ov", "-format", "UDZO", file_name);
 
         // Remove our temporary directory when we're done
         run_command("rm", "-r", DMG_DIR);
@@ -309,9 +333,12 @@ settings_info: struct {
     }
 }
 
+plugins: [..] *Metaprogram_Plugin;
+
 #import "Compiler";
 #import "Basic";
 #import "File";
+#import "Metaprogram_Plugins";
 #import "Process";
 #import "String";
 
@@ -352,7 +379,7 @@ settings_info: struct {
         for m.system_libraries
             array_add(*link_command, crt_lib_to_static(it));
         for m.user_libraries {
-            if ends_with(it, "freetype.lib")  array_add(*link_command, "modules/freetype/windows/freetype.lib");
+            if ends_with(it, "freetype.lib")  array_add(*link_command, "modules/freetype-bin/windows/freetype.lib");
             else  array_add(*link_command, it);
         }
 

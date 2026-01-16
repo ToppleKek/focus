@@ -3,7 +3,7 @@ commands_dialog_handle_event :: (event: Input.Event) -> handled: bool {
 }
 
 commands_execute_selected :: (placement: Editor_Placement = .in_place) {
-    hide_dialog(*commands_dialog);
+    hide_dialog(commands_dialog);
 
     using commands_dialog;
     if selected >= filtered.count return;
@@ -50,7 +50,7 @@ commands_open_in_pane :: (number: s64) {
         case;                                                   handled = false;
     }
 
-    hide_dialog(*commands_dialog);
+    hide_dialog(commands_dialog);
 }
 
 commands_refresh_after_config_change :: () {
@@ -257,6 +257,7 @@ base_commands := #run -> [] Command {
         cmd( "Toggle Pane Numbers",               .toggle_pane_numbers,              .Single ),
         cmd( "Toggle Indent Guides",              .toggle_indent_guides,             .Single ),
         cmd( "Toggle Fullscreen",                 .toggle_fullscreen,                .None   ),
+        cmd( "Toggle Status Bar",                 .toggle_status_bar,                .Single ),
 
         cmd( "Build: Kill Running Command",       .build_kill_running_command,       .None   ),
         cmd( "Build: Clear Build Output",         .build_clear_output,               .None   ),
@@ -267,6 +268,7 @@ base_commands := #run -> [] Command {
 
         cmd( "Open Another Editor Instance",      .open_another_editor_instance,     .None   ),
         cmd( "Copy Current Line Info",            .copy_current_line_info,           .Single ),
+        cmd( "Copy Current File Path",            .copy_current_file_path,           .Single ),
 
         cmd( "Choose Language Syntax",            .choose_language,                  .Single ),
         cmd( "Reload File From Disk",             .reload_from_disk,                 .Single ),
@@ -275,6 +277,9 @@ base_commands := #run -> [] Command {
         cmd( "Indentation: Use Defaults For File",              .indentation_use_defaults_for_buffer,      .Single),
         cmd( "Indentation: Convert File Indentation To Tabs",   .indentation_convert_to_tabs_for_buffer,   .Single),
         cmd( "Indentation: Convert File Indentation To Spaces", .indentation_convert_to_spaces_for_buffer, .Single),
+
+        cmd( "Line Endings: Convert Buffer To CRLF",            .convert_buffer_to_crlf,                   .Single),
+        cmd( "Line Endings: Convert Buffer To LF",              .convert_buffer_to_lf,                     .Single),
     ];
 
     linux_commands := Command.[

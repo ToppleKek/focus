@@ -219,7 +219,7 @@ start_new_token :: inline (using tokenizer: *Jai_Tokenizer) -> Token {
 
 maybe_mark_as_keyword :: inline (token: *Token, identifier_str: string) -> is_keyword: bool {
     if identifier_str.count > MAX_KEYWORD_LENGTH return false;
-    ok, kw_token := table_find_new(*KEYWORD_MAP, identifier_str);
+    ok, kw_token := table_find(*KEYWORD_MAP, identifier_str);
     if ok {
         token.type = kw_token.type;
         token.keyword = kw_token.keyword;;
@@ -427,7 +427,7 @@ parse_directive :: (using tokenizer: *Jai_Tokenizer, token: *Token, buffer: *Buf
 
         // Check if it's one of the existing directives
         if directive_str.count > MAX_DIRECTIVE_LENGTH return;
-        ok, directive := table_find_new(*DIRECTIVES_MAP, directive_str);
+        ok, directive := table_find(*DIRECTIVES_MAP, directive_str);
         if !ok return;
 
         token.type = .directive;
@@ -502,7 +502,7 @@ parse_directive :: (using tokenizer: *Jai_Tokenizer, token: *Token, buffer: *Buf
         start := cast(s32) (t - buf.data);
         end   := find_index_from_left(buf, identifier_str, start_index = start);
         if end < 0 {
-            end = buf.count - 1;
+            end = buf.count;
             t = max_t;
         } else {
             t = buf.data + end + identifier_str.count;
@@ -510,18 +510,20 @@ parse_directive :: (using tokenizer: *Jai_Tokenizer, token: *Token, buffer: *Buf
         }
 
         #if do_highlighting {
-            // Maybe add a heredoc region for deferred highlighting
-            potential_lang_name := identifier_str;
-            {
-                // Extract lang from heredoc names like BLAH_BLAH_lang
-                found, _, lang := split_from_right(identifier_str, cast(u8) #char "_");
-                if found then potential_lang_name = lang;
-            }
-            lang := get_lang_from_name(potential_lang_name);
-            if lang != .Plain_Text {
-                array_add(*regions, Buffer_Region.{ start = start + 1, end = xx end, kind = .heredoc, lang = lang });  // start + 1 to not include the newline
-            } else {
-                memset(buffer.tokens.data + start, xx Token_Type.multiline_string, end - start);  // highlight everything as string
+            if start < end {
+                // Maybe add a heredoc region for deferred highlighting
+                potential_lang_name := identifier_str;
+                {
+                    // Extract lang from heredoc names like BLAH_BLAH_lang
+                    found, _, lang := split_from_right(identifier_str, cast(u8) #char "_");
+                    if found then potential_lang_name = lang;
+                }
+                lang := get_lang_from_name(potential_lang_name);
+                if lang != .Plain_Text {
+                    array_add(*regions, Buffer_Region.{ start = start + 1, end = xx end, kind = .heredoc, lang = lang });  // start + 1 to not include the newline
+                } else {
+                    memset(buffer.tokens.data + start, xx Token_Type.multiline_string, end - start);  // highlight everything as string
+                }
             }
         }
     }
@@ -596,8 +598,8 @@ parse_slash_or_comment :: (using tokenizer: *Jai_Tokenizer, token: *Token) {
             token.type = .multiline_comment;
             t += 1;
             num_open_comments := 0;
-            while t + 1 < max_t {
-                if t.* == #char "*" && (t + 1).* == #char "/" {
+            while t < max_t {
+                if t.* == #char "*" && (t + 1) < max_t && (t + 1).* == #char "/" {
                     if num_open_comments == 0 {
                         t += 2;
                         break;
@@ -605,7 +607,7 @@ parse_slash_or_comment :: (using tokenizer: *Jai_Tokenizer, token: *Token) {
                         num_open_comments -= 1;
                         t += 1;
                     }
-                } else if t.* == #char "/" && (t + 1).* == #char "*" {
+                } else if t.* == #char "/" && (t + 1) < max_t && (t + 1).* == #char "*" {
                     num_open_comments += 1;
                     t += 1;
                 }
@@ -741,10 +743,10 @@ DIRECTIVES :: string.[
     "dump", "dynamic_specialize", "elsewhere", "expand", "file", "filepath", "foreign", "library", "system_library",
     "if", "ifx", "import", "insert", "insert_internal", "intrinsic", "line", "load",
     "location", "modify", "module_parameters", "must", "no_abc", "no_aoc", "no_alias", "no_context", "no_padding", "no_reset",
-    "place", "placeholder", "poke_name", "procedure_of_call", "program_export", "run", "runtime_support",
+    "overlay", "place", "placeholder", "poke_name", "procedure_of_call", "program_export", "run", "runtime_support",
     "scope_export", "scope_file", "scope_module", "specified", "string", "symmetric", "this", "through", "type",
     "type_info_no_size_complaint", "type_info_none", "type_info_procedures_are_void_pointers",
-    "compile_time", "no_debug", "procedure_name", "discard", "entry_point", "Context",
+    "compile_time", "no_debug", "procedure_name", "discard", "entry_point", "Context", "exists",
     // temporary:
     "v2",
 ];

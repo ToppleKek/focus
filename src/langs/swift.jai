@@ -158,7 +158,7 @@ parse_identifier :: (using tokenizer: *Swift_Tokenizer, token: *Token) {
 
     // Maybe it's a keyword
     if identifier_str.count <= MAX_KEYWORD_LENGTH {
-        ok, kw_token := table_find_new(*KEYWORD_MAP, identifier_str);
+        ok, kw_token := table_find(*KEYWORD_MAP, identifier_str);
         if ok {
             token.type    = kw_token.type;
             token.keyword = kw_token.keyword;
@@ -402,16 +402,14 @@ parse_slash_or_comment :: (using tokenizer: *Swift_Tokenizer, token: *Token) {
             token.operation = .slash_equal;
             t += 1;
         case #char "/";
-            token.operation = .comment;
+            token.type = .comment;
             t += 1;
             while t < max_t && t.* != #char "\n"  t += 1;
         case #char "*";
             token.type = .multiline_comment;
             t += 1;
-            if t >= max_t  return;
-
-            while t + 1 < max_t {
-                if t.* == #char "*" && (t + 1).* == #char "/" {
+            while t < max_t {
+                if t.* == #char "*" && (t + 1) < max_t && (t + 1).* == #char "/" {
                     t += 2;
                     break;
                 }
@@ -552,7 +550,6 @@ OPERATIONS :: string.[
     "ampersand", "double_ampersand", "ampersand_equal",
     "question", "double_question",
     "caret", "caret_equal",
-    "comment",
     "dollar",
 ];
 

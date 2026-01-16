@@ -64,7 +64,7 @@ set_render_target :: (window: Window_Type) {
 
     backend_set_render_target(info);
 
-    state.current_window_info = << info;
+    state.current_window_info = info.*;
 }
 
 set_render_target :: (texture: *Texture) {
@@ -101,7 +101,7 @@ update_window :: (window: Window_Type) {
     c := *state.current_window_info;
     if c.window == window {
         if (window_width != c.window_width) || (window_height != c.window_height) {
-            backend_resize_render_target(<<info);
+            backend_resize_render_target(info.*);
 
             // If the user changes the window after setting a shader,
             // the projection will be out-of-date, so, update it here.
@@ -112,7 +112,7 @@ update_window :: (window: Window_Type) {
             }
         }
 
-        state.current_window_info = << info;
+        state.current_window_info = info.*;
     }
 }
 
@@ -156,6 +156,10 @@ set_hinting :: (value: bool) {
     font_hinting = value;
 }
 
+set_show_tab_characters_in_selection :: (value: bool) {
+    show_tab_characters_in_selection = value;
+}
+
 // @Cleanup: This has a lot of overlap with Window_Creation’s "get_dimensions"
 get_render_dimensions :: (window: Window_Type) -> (width: s32, height: s32) {
     #if OS == .WINDOWS {
@@ -194,6 +198,9 @@ find_window_info :: (window: Window_Type) -> *Window_Info {
     return null;
 }
 
+show_tab_characters_in_selection := true;
+
+// Style settings.
 COLOR_MAP: [] Vector4;
 font_anti_aliasing: Font_Anti_Aliasing = .lcd;
 font_hinting := true;

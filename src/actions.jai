@@ -42,6 +42,7 @@ ACTIONS_COMMON :: string.[
     "show_default_config",
 
     "toggle_fullscreen",
+    "toggle_status_bar",
     "toggle_build_panel",
     "toggle_build_panel_focus",
     "build_kill_running_command",
@@ -215,12 +216,16 @@ ACTIONS_EDITORS :: #run arrays_concat(ACTIONS_COMMON, string.[
     "toggle_pane_numbers",
     "toggle_indent_guides",
     "copy_current_line_info",
+    "copy_current_file_path",
 
     "indentation_detect_from_buffer_contents",
     "indentation_use_defaults_for_buffer",
     "indentation_convert_to_tabs_for_buffer",
     "indentation_convert_to_spaces_for_buffer",
     "reload_from_disk",
+
+    "convert_buffer_to_crlf",
+    "convert_buffer_to_lf",
 
     "split_left",
     "split_right",

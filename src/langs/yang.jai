@@ -25,7 +25,7 @@ get_next_token :: (using tokenizer: *Tokenizer) -> Token {
 
     start_t = t;
 
-    char := << t;
+    char := t.*;
 
     if ascii_is_alpha(char) {
         parse_identifier(tokenizer, *token);
@@ -62,7 +62,7 @@ parse_identifier :: (using tokenizer: *Tokenizer, token: *Token) {
     sanitized_string := replace(identifier_str, "-", "_");
 
     if sanitized_string.count <= MAX_KEYWORD_LENGTH {
-        ok, kw_token := table_find_new(*KEYWORD_MAP, sanitized_string);
+        ok, kw_token := table_find(*KEYWORD_MAP, sanitized_string);
         if ok {
             token.type = kw_token.type;
             token.keyword = kw_token.keyword;
@@ -77,12 +77,12 @@ parse_number :: (using tokenizer: *Tokenizer, token: *Token) {
     t += 1;
     if t >= max_t return;
 
-    if ascii_is_digit(<< t) || << t == #char "_" {
+    if ascii_is_digit(t.*) || t.* == #char "_" {
         // Decimal
         t += 1;
         seen_decimal_point := false;
-        while t < max_t && (ascii_is_digit(<< t) || << t == #char "_" || << t == #char ".") {
-            if << t == #char "." {
+        while t < max_t && (ascii_is_digit(t.*) || t.* == #char "_" || t.* == #char ".") {
+            if t.* == #char "." {
                 if seen_decimal_point break;
                 seen_decimal_point = true;
             }
@@ -97,16 +97,16 @@ parse_slash_or_comment :: (using tokenizer: *Tokenizer, token: *Token) {
     t += 1;
     if t >= max_t return;
 
-    if << t == {
+    if t.* == {
         case #char "/";
             token.type = .comment;
             t += 1;
-            while t < max_t && << t != #char "\n" t += 1;
+            while t < max_t && t.* != #char "\n" t += 1;
         case #char "*";
             token.type = .comment;
             t += 1;
-            while t + 1 < max_t {
-                if << t == #char "*" && << (t + 1) == #char "/" {
+            while t < max_t {
+                if t.* == #char "*" && (t + 1) < max_t && (t + 1).* == #char "/" {
                   t += 2;
                   break;
                 }
@@ -122,9 +122,9 @@ parse_string_literal :: (using tokenizer: *Tokenizer, token: *Token, quote := #c
      t += 1;
 
      while t < max_t {
-        char := << t;
+        char := t.*;
         if char == quote && !escape_seen break;
-        escape_seen = !escape_seen && <<t == #char "\\";
+        escape_seen = !escape_seen && t.* == #char "\\";
         t += 1;
         if t >= max_t return;
      }
@@ -136,7 +136,7 @@ read_identifier_string :: (using tokenizer: *Tokenizer) -> string {
     ret.data = t;
 
     while t < max_t {
-        c := <<t;
+        c := t.*;
         if ascii_is_alnum(c) || c == #char "-"  { t += 1; continue; }
         break;
     }
@@ -224,4 +224,3 @@ MAX_KEYWORD_LENGTH :: #run -> s32 {
     for TYPE_KEYWORDS  { if it.count > result then result = it.count; }
     return xx result;
 }
-

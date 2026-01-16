@@ -1,6 +1,6 @@
 // Increment this if your PR adds a setting, color or default keybinding (and amend the relevant array
-// in config_migrator.jai).  You don't need to increase it for each such change; once per PR is fine.
-CURRENT_CONFIG_VERSION :: 23;
+// in config_migrator.jai).  You don't need to increase it for each such change; once per PR is best.
+CURRENT_CONFIG_VERSION :: 25;
 
 load_global_config :: (fallback_to_default_on_failure := false, force := false) -> success: bool, changed: bool, there_were_warnings: bool {
     config_path := tprint("%/global.focus-config", config_dir);
@@ -606,7 +606,7 @@ load_font_by_name :: (name: string, kind: enum { main; ui; ui_bold; ui_bold_ital
 
     font_path := find_font_by_name(name);
     if font_path {
-        found, cached_font := table_find_new(*font_cache, font_path);
+        found, cached_font := table_find(*font_cache, font_path);
         if found return cached_font, true;
 
         font_data, success := read_entire_file(font_path);
@@ -727,6 +727,7 @@ Settings :: struct {
     closing_last_editor_in_pane_should_close_pane           := true;    @v23
     closing_last_editor_should_exit_program                 := false;   @v23
     show_pane_numbers                                       := false;   @v23
+    show_tab_characters_in_selection                       := true;    @v24
 
     // TODO
     // load_last_session_on_start:         true
@@ -755,6 +756,7 @@ Settings :: struct {
     status_bar_show_cursors_off_screen                      := true;                                                @v11 @overridable
     status_bar_show_selected_text_length                    := false;                                               @v3  @overridable
     show_scrollbar_marks                                    := true;                                                @v15 @overridable
+    line_endings                                            := Line_Endings.lf;                                     @v25 @overridable
 }
 
 // Generate a struct for the settings that can be overridden
@@ -803,6 +805,7 @@ Status_Bar_Position       :: enum { bottom; top; }
 Strip_Trailing_Whitespace :: enum { except_lines_with_cursor; all; disabled; }
 Color_Preview_Popup       :: enum { enabled; minimized; disabled; }
 Projects_Sorting_Order    :: enum { most_recent_first; alphabetical; alphabetical_no_case; }
+Line_Endings              :: enum { lf; crlf; preserve; }
 
 Font_Anti_Aliasing        :: enum { lcd; normal; }
 #poke_name Simp Font_Anti_Aliasing;

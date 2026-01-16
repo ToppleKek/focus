@@ -229,6 +229,9 @@ deinit_logger :: () {
 
     file_close(*logger_data.log_file);
     file_close(*logger_data.log_error_file);
+
+    // Some plugins, such as Iprof, will log after our session logger has been closed.
+    context.logger = runtime_support_default_logger;
 }
 
 session_notify_modified_buffer :: (buffer_id: s64) {
@@ -330,7 +333,7 @@ get_sorted_session_dirs_tmp :: () -> [] Session_Dir /* temporary storage */ {
         if dir2.modtime > dir1.modtime return  1;
         return 0;
     }
-    bubble_sort(session_dirs, cmp_dirs);
+    quick_sort(session_dirs, cmp_dirs);
 
     return session_dirs;
 }
@@ -343,8 +346,8 @@ copy_session_data :: (source: string, dest: string) {
         if info.short_name != "state" && info.short_name != "project" return;
         // NOTE: we don't copy any buffer backup files, because we'd have to delete them after loading anyway
 
-        success := copy_file(info.full_name, tprint("%/%", <<dst_dir, info.short_name));
-        if !success log_error("Couldn't copy session file '%' into '%'", info.full_name, <<dst_dir);
+        success := copy_file(info.full_name, tprint("%/%", dst_dir.*, info.short_name));
+        if !success log_error("Couldn't copy session file '%' into '%'", info.full_name, dst_dir.*);
     }
 
     visit_files(src_session, recursive = false, *dst_session, visitor);

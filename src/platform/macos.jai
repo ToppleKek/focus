@@ -129,7 +129,7 @@ platform_find_font_by_name :: (name: string, allocator := temp) -> bool, string 
 }
 
 platform_get_fonts_dir :: inline () -> string {
-    return "/Library/Fonts";
+    return "/System/Library/Fonts";
 }
 
 platform_open_in_explorer :: (path: string, reveal := false) {
@@ -195,6 +195,8 @@ platform_get_troubleshooting_info :: () -> string {
     return "<not implemented>";
 }
 
+using,except(session) POSIX :: #import "POSIX";
+
 #scope_file
 
 dark_string  :: "NSAppearanceNameDarkAqua";
@@ -214,7 +216,6 @@ monitors : [..] Monitor;
 #import "Process";
 #import "Hash_Table";
 #import "Math";
-#import "POSIX";
 
 // We need to store the association between `Focus_Timer` instances and `NSTimer` instances externally
 // since currently we can't properly do instance variables for Cocoa classes (see the warning at the
@@ -270,7 +271,7 @@ create_timer :: (timeout_ms: u64, repeat := true) -> *Focus_Timer {
 
 destroy_timer :: (timer: *Focus_Timer) {
     if (timer) {
-        found, ns_timer := table_find_new(*native_timers, timer);
+        found, ns_timer := table_find(*native_timers, timer);
         if found {
             NSTimer.invalidate(ns_timer);
             table_remove(*native_timers, timer);

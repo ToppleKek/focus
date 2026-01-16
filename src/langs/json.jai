@@ -28,7 +28,7 @@ get_next_token :: (using tokenizer: *Tokenizer) -> Token {
     start_t = t;
 
     // Look at the first char as if it's ASCII (if it isn't, this is just a text line)
-    char := << t;
+    char := t.*;
 
     if ascii_is_alpha(char) {
         parse_value_keyword(tokenizer, *token);
@@ -61,7 +61,7 @@ parse_value_keyword :: (using tokenizer: *Tokenizer, token: *Token) {
     value_str := read_utf8_identifier_string(tokenizer);
 
     if value_str.count <= MAX_KEYWORD_LENGTH {
-        ok, kw_token := table_find_new(*KEYWORD_MAP, value_str);
+        ok, kw_token := table_find(*KEYWORD_MAP, value_str);
         if ok { token.type = kw_token.type; token.keyword = kw_token.keyword; return; }
     }
 }
@@ -124,7 +124,7 @@ parse_minus :: (using tokenizer: *Tokenizer, token: *Token) {
     t += 1;
     if t >= max_t return;
 
-    if ascii_is_digit(<< t) parse_number(tokenizer, token);
+    if ascii_is_digit(t.*) parse_number(tokenizer, token);
 }
 
 parse_string :: (using tokenizer: *Tokenizer, token: *Token) {
@@ -133,9 +133,9 @@ parse_string :: (using tokenizer: *Tokenizer, token: *Token) {
     escape_seen := false;
 
     t += 1;
-    while t < max_t && << t != #char "\n" {
-        if <<t == #char "\"" && !escape_seen break;
-        escape_seen = !escape_seen && <<t == #char "\\";
+    while t < max_t && t.* != #char "\n" {
+        if t.* == #char "\"" && !escape_seen break;
+        escape_seen = !escape_seen && t.* == #char "\\";
         t += 1;
     }
     if t >= max_t return;
@@ -150,16 +150,16 @@ parse_slash_or_comment :: (using tokenizer: *Tokenizer, token: *Token) {
     t += 1;
     if t >= max_t return;
 
-    if << t == {
+    if t.* == {
         case #char "/";
             token.type = .comment;
             t += 1;
-            while t < max_t && << t != #char "\n" t += 1;
+            while t < max_t && t.* != #char "\n" t += 1;
         case #char "*";
             token.type = .multiline_comment;
             t += 1;
-            while t + 1 < max_t {
-                if << t == #char "*" && << (t + 1) == #char "/" {
+            while t < max_t {
+                if t.* == #char "*" && (t + 1) < max_t && (t + 1).* == #char "/" {
                   t += 2;
                   break;
                 }
@@ -227,4 +227,3 @@ MAX_KEYWORD_LENGTH :: #run -> s32 {
     for VALUE_KEYWORDS { if it.count > result then result = it.count; }
     return xx result;
 }
-

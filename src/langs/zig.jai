@@ -44,7 +44,7 @@ get_next_token :: (using tokenizer: *Tokenizer) -> Token {
 
     // Assume ASCII, unless we're in the middle of a string.
     // UTF-8 characters elsewhere are a syntax error.
-    char := << t;
+    char := t.*;
 
     if ascii_is_alpha(char) || char == #char "_" {
         parse_identifier(tokenizer, *token);
@@ -97,7 +97,7 @@ parse_identifier :: (using tokenizer: *Tokenizer, token: *Token) {
 
     // Maybe it's a keyword
     if identifier_str.count <= MAX_KEYWORD_LENGTH {
-        ok, kw_token := table_find_new(*KEYWORD_MAP, identifier_str);
+        ok, kw_token := table_find(*KEYWORD_MAP, identifier_str);
         if ok { token.type = kw_token.type; token.keyword = kw_token.keyword; return; }
     }
 
@@ -176,7 +176,7 @@ parse_directive :: (using tokenizer: *Tokenizer, token: *Token) {
 
         // Check if it's one of the existing directives
         if directive_str.count > MAX_DIRECTIVE_LENGTH return;
-        ok, directive := table_find_new(*DIRECTIVES_MAP, directive_str);
+        ok, directive := table_find(*DIRECTIVES_MAP, directive_str);
         if ok {
             token.type = .directive;
             token.directive = directive;
@@ -230,7 +230,7 @@ parse_slash_or_comment :: (using tokenizer: *Tokenizer, token: *Token) {
     if t.* == #char "/" {
         token.type = .comment;
         t += 1;
-        while t < max_t && << t != #char "\n" t += 1;
+        while t < max_t && t.* != #char "\n" t += 1;
     }
 }
 
@@ -243,7 +243,7 @@ parse_multiline_string :: (using tokenizer: *Tokenizer, token: *Token) {
     if t.* == #char "\\" {
         token.type = .multiline_string;
         t += 1;
-        while t < max_t && << t != #char "\n" t += 1;
+        while t < max_t && t.* != #char "\n" t += 1;
     }
 }
 
@@ -253,9 +253,9 @@ parse_string_literal :: (using tokenizer: *Tokenizer, token: *Token) {
     escape_seen := false;
 
     t += 1;
-    while t < max_t && << t != #char "\n" {
-        if <<t == #char "\"" && !escape_seen break;
-        escape_seen = !escape_seen && <<t == #char "\\";
+    while t < max_t && t.* != #char "\n" {
+        if t.* == #char "\"" && !escape_seen break;
+        escape_seen = !escape_seen && t.* == #char "\\";
         t += 1;
     }
     if t >= max_t return;
@@ -269,9 +269,9 @@ parse_char_literal :: (using tokenizer: *Tokenizer, token: *Token) {
     escape_seen := false;
 
     t += 1;
-    while t < max_t && << t != #char "\n" {
-        if <<t == #char "'" && !escape_seen break;
-        escape_seen = !escape_seen && <<t == #char "\\";
+    while t < max_t && t.* != #char "\n" {
+        if t.* == #char "'" && !escape_seen break;
+        escape_seen = !escape_seen && t.* == #char "\\";
         t += 1;
     }
     if t >= max_t return;
