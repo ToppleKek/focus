@@ -1,7 +1,7 @@
 main :: () {
     #if DEBUG && OS != .LINUX {
         UA :: #import "Unmapping_Allocator";
-        // context.allocator = UA.get_unmapping_allocator();
+        context.allocator = UA.get_unmapping_allocator();
     }
 
     focus_allocator = context.allocator;  // to be used as a default allocator where we need it
