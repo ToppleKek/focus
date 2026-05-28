@@ -338,6 +338,8 @@ active_editor_handle_event :: (editor: *Editor, buffer: *Buffer, event: Input.Ev
             case .join_lines;                          join_lines                       (editor, buffer);                  keep_selection = true;
             case .join_lines_no_spaces_in_between;     join_lines                       (editor, buffer, in_between = ""); keep_selection = true;
 
+            case .sort_lines;                          sort_lines                       (editor, buffer);                  keep_selection = true;
+
             case .delete_line;                         delete_line                      (editor, buffer);
             case .delete_line_and_go_up;               delete_line                      (editor, buffer, go_up = true);
 
@@ -1226,6 +1228,8 @@ editor_do_post_close_cleanup :: (editor_id: s64) {
 
     array_ordered_remove_by_value(*recently_closed_editors, editor_id);
     array_add(*recently_closed_editors, editor_id);
+
+    open_file_dialog.should_refresh_entries = true;
 }
 
 close_buffer :: (buffer_id: s64) {
@@ -2258,7 +2262,7 @@ deinit_editors :: () {
 init_buffers :: () {
     // 3000 * 70% = 2100 is a reasonable number of text files in a workspace, which
     // most codebases will hopefully not exceed (so that we don't have to grow the hash table)
-    init(*buffers_table, slots_to_allocate = 3000);
+    table_resize(*buffers_table, 3000);
     init(*open_buffers_lock);
 
     global_config_buffer_id = -1;
@@ -4324,6 +4328,30 @@ join_lines :: (editor: *Editor, buffer: *Buffer, in_between := " ") {
     }
 
     editor.cursor_moved = true;
+}
+
+sort_lines :: (editor: *Editor, buffer: *Buffer) {
+    line_ranges := get_whole_line_ranges_for_cursors(editor, buffer, merge_adjacent = false);
+
+    cursor_positions := remember_cursor_positions(editor.buffer_id, .active_editor);
+
+    for * line_range : line_ranges {
+        range_str := get_range_as_string(buffer, line_range.range);
+        trimmed_str := trim_right(range_str, "\n");
+        individual_lines := split(trimmed_str, #char "\n",, allocator = temp);
+        if individual_lines.count <= 1 continue;
+
+        // Adjust line range to account for trailing newlines
+        line_range.end -= cast(s32) (range_str.count - trimmed_str.count);
+
+        quick_sort(individual_lines, compare_strings);
+
+        new_str := join(..individual_lines, "\n",, allocator = temp);
+
+        replace_range(buffer, line_range.range, new_str);
+    }
+
+    restore_cursor_positions(editor.buffer_id, cursor_positions);
 }
 
 delete_line :: (editor: *Editor, buffer: *Buffer, go_up := false) {

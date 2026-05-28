@@ -176,6 +176,8 @@ base_commands := #run -> [] Command {
         cmd( "Join Lines",                        .join_lines,                       .Single ),
         cmd( "Join Lines (no spaces in between)", .join_lines_no_spaces_in_between,  .Single ),
 
+        cmd( "Sort Lines",                        .sort_lines,                       .Single ),
+
         cmd( "Duplicate Lines",                   .duplicate_lines,                  .Single ),
         cmd( "Duplicate Lines Up",                .duplicate_lines_up,               .Single ),
         cmd( "Copy CPP Member Func Declaration",  .cpp_copy_member_func_declaration, .Single ),
@@ -273,13 +275,18 @@ base_commands := #run -> [] Command {
         cmd( "Choose Language Syntax",            .choose_language,                  .Single ),
         cmd( "Reload File From Disk",             .reload_from_disk,                 .Single ),
 
-        cmd( "Indentation: Detect From File Contents",          .indentation_detect_from_buffer_contents,  .Single),
-        cmd( "Indentation: Use Defaults For File",              .indentation_use_defaults_for_buffer,      .Single),
-        cmd( "Indentation: Convert File Indentation To Tabs",   .indentation_convert_to_tabs_for_buffer,   .Single),
-        cmd( "Indentation: Convert File Indentation To Spaces", .indentation_convert_to_spaces_for_buffer, .Single),
+        cmd( "Indentation: Detect From File Contents",          .indentation_detect_from_buffer_contents,   .Single),
+        cmd( "Indentation: Use Defaults For File",              .indentation_use_defaults_for_buffer,       .Single),
+        cmd( "Indentation: Convert File Indentation To Tabs",   .indentation_convert_to_tabs_for_buffer,    .Single),
+        cmd( "Indentation: Convert File Indentation To Spaces", .indentation_convert_to_spaces_for_buffer,  .Single),
 
-        cmd( "Line Endings: Convert Buffer To CRLF",            .convert_buffer_to_crlf,                   .Single),
-        cmd( "Line Endings: Convert Buffer To LF",              .convert_buffer_to_lf,                     .Single),
+        cmd( "Line Endings: Convert Buffer To CRLF",            .convert_buffer_to_crlf,                    .Single),
+        cmd( "Line Endings: Convert Buffer To LF",              .convert_buffer_to_lf,                      .Single),
+
+        cmd( "Go To Previous Build Error",                      .go_to_previous_build_error,                .None ),
+        cmd( "Go To Previous Build Error (In Side Pane)",       .go_to_previous_build_error_in_side_pane,   .None ),
+        cmd( "Go To Next Build Error",                          .go_to_next_build_error,                    .None ),
+        cmd( "Go To Next Build Error (In Side Pane)",           .go_to_next_build_error_in_side_pane,       .None ),
     ];
 
     linux_commands := Command.[

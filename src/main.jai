@@ -37,6 +37,7 @@ main :: () {
 
     fill_in_missing_default_themes();
 
+    init_file_tables();
     init_file_watcher();
     defer deinit_file_watcher();
 
@@ -1116,7 +1117,7 @@ focus_allocator: Allocator;
     #import "Machine_X64";
 }
 
-using Basic :: #import "Basic"()(MEMORY_DEBUGGER = DEBUG, TEMP_ALLOCATOR_POISON_FREED_MEMORY = false);
+using Basic :: #import "Basic"()(MEMORY_DEBUGGER = DEBUG);
 #import "Atomics";
 #import "Compiler";
 #import "File";
@@ -1205,6 +1206,7 @@ DEBUG_MEMORY_LEAKS :: false;
     /*
      * EXTREME JANK - nuke once the Jai standard library no longer depends on libc
      */
+    libc :: #system_library "libc";
     focus_memcpy :: (dst: *void, src: *void, size: s64) -> *void #foreign libc "memmove";
 
     // For now this is commented out, just in case this is needed in the future I will leave it here :)

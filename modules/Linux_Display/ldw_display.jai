@@ -129,7 +129,6 @@ wl_init_display :: (display: *Display) -> bool {
     init_string_builder(*d.current_text_selection);
 
     cursor_theme_name := getenv("XCURSOR_THEME");
-    init(*d.cursors);
     d.cursor_theme = wl_cursor_theme_load(cursor_theme_name, 24, d.shm);
     for 0..d.cursor_theme.cursor_count - 1 {
         native := d.cursor_theme.cursors[it];
@@ -443,10 +442,15 @@ data_device_listener :: wl_data_device_listener.{
         push_context ctx {
             d : *Wayland_Display = wl_proxy_get_user_data(self);
 
-            if !d.data_offer return;
-
+            d.data_offer = id;
             reset(*d.current_text_selection);
-            data_offer_read_data(d, MIME_TYPE_TEXT, *d.current_text_selection);
+
+            if !id return;
+
+            if data_offer_has_mime_type(d, MIME_TYPE_TEXT) {
+                data_offer_read_data(d, MIME_TYPE_TEXT, *d.current_text_selection);
+            }
+
             data_offer_reset(d);
         }
     }
