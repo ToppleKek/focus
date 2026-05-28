@@ -5,6 +5,48 @@ Ctag :: struct {
     base_path: string; // NOTE: This string is stored in an array to save copying the same base path for every single entry in one ctags file. Do not free it!
 }
 
+lookup_ctags :: (ident: string) -> *[..] Ctag {
+    // print("CTAGS: Looking up: %\n", ident);
+    return table_find_pointer(*all_tags, ident);
+}
+
+async_load_ctag_files :: (paths: [] string) {
+    if !is_all_loaded {
+        should_kill_loader_thread = true;
+        // thread join, free existing loader_thread_data, etc.
+        // @MyFork @Incomplete
+    } else {
+        is_all_loaded             = false;
+        should_kill_loader_thread = false;
+
+        loader_thread_data := array_copy(paths);
+        thread_init(*loader_thread, async_load_ctag_files_thread_proc);
+    }
+}
+
+clear_all_ctags :: () {
+    table_reset(*all_tags);
+    deinit(*all_tags);
+    is_all_loaded = true;
+}
+
+#scope_file
+
+all_tags: Table(string, [..] Ctag);
+base_paths: [..] string;
+loader_thread: Thread;
+loader_thread_data: [] string;
+is_all_loaded := true;
+should_kill_loader_thread := false;
+
+async_load_ctag_files_thread_proc :: (thread: *Thread) -> s64 {
+    assert(!is_all_loaded);
+    for loader_thread_data load_ctag_file(it);
+    is_all_loaded = true;
+    array_reset(*loader_thread_data);
+    return 0;
+}
+
 load_ctag_file :: (path: string) {
     print("CTAGS: Loading %\n", path);
     handler: Text_File_Handler;
@@ -62,17 +104,6 @@ load_ctag_file :: (path: string) {
         // if loaded % 1000 == 0 then print("Loaded % tags\n", loaded);
     }
 }
-
-lookup_ctags :: (ident: string) -> *[..] Ctag {
-    // print("CTAGS: Looking up: %\n", ident);
-    return table_find_pointer(*all_tags, ident);
-}
-
-#scope_file
-
-all_tags: Table(string, [..] Ctag);
-// all_tags_array: [..] Ctag;
-base_paths: [..] string;
 
 parse_one_ctag :: (line: string, base_path: string) -> bool, Ctag {
     ret: Ctag;

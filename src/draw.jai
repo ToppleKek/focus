@@ -3808,13 +3808,6 @@ draw_decl_finder :: () {
                 push_scissor(filename_scissor);
                 defer pop_scissor();
 
-                // FIXME: @Myfork: I am going to pass this function a fake buffer because I am a bad person!
-                // buffer: Buffer;
-                // buffer.has_file = true;
-                // buffer.file.icon = Icon.text;
-                // buffer.file.full_path = join(entry.base_path, entry.file,, temp);
-                // buffer.file.path = entry.file;
-                // buffer.file.name = path_filename(entry.file);
                 width, pen = draw_file_info(buffer, width, padding, pen, font_variant = .normal);
             }
 

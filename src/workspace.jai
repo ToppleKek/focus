@@ -37,6 +37,9 @@ init_workspace :: () {
     } else {
         set_working_directory(data_dir);
     }
+
+    // @MyFork Kick off ctag loading.
+    async_load_ctag_files(config.workspace.ctag_files);
 }
 
 get_working_directory_from_workspace :: (members: [] string) -> string {
@@ -195,32 +198,32 @@ workspace_update :: () {
         return;
     }
 
-    if file_list_ready && !ctags_scan_complete {
-        if get_completed_work(*ctags_thread_group).count != 0 {
-            log("Ctags scan complete. Here are the tags for APewCharacter:");
-            fucking_shit := lookup_ctags("APewCharacter");
-            if fucking_shit {
-                for fucking_shit.* {
-                    log("%", it);
-                }
-            } else {
-                log("(none)");
-            }
+    // if file_list_ready && !ctags_scan_complete {
+    //     if get_completed_work(*ctags_thread_group).count != 0 {
+    //         log("Ctags scan complete. Here are the tags for APewCharacter:");
+    //         fucking_shit := lookup_ctags("APewCharacter");
+    //         if fucking_shit {
+    //             for fucking_shit.* {
+    //                 log("%", it);
+    //             }
+    //         } else {
+    //             log("(none)");
+    //         }
 
-            shutdown(*ctags_thread_group);
-            ctags_scan_complete = true;
-        } else if !ctags_thread_group.started {
-            log("File list is ready. Starting ctags scan.");
-            ctags_thread_group = Thread_Group.{};
-            init(*ctags_thread_group, num_threads = 2, group_proc = ctags_scan_threadproc);
-            ctags_thread_group.name    = "Ctags Scanner";
-            ctags_thread_group.logging = false;
+    //         shutdown(*ctags_thread_group);
+    //         ctags_scan_complete = true;
+    //     } else if !ctags_thread_group.started {
+    //         log("File list is ready. Starting ctags scan.");
+    //         ctags_thread_group = Thread_Group.{};
+    //         init(*ctags_thread_group, num_threads = 2, group_proc = ctags_scan_threadproc);
+    //         ctags_thread_group.name    = "Ctags Scanner";
+    //         ctags_thread_group.logging = false;
 
-            start(*ctags_thread_group);
+    //         start(*ctags_thread_group);
 
-            add_work(*ctags_thread_group, xx 0);
-        }
-    }
+    //         add_work(*ctags_thread_group, xx 0);
+    //     }
+    // }
 
     file_watcher_process_changes();
 }
@@ -413,10 +416,10 @@ file_list_threadproc :: (group: *Thread_Group, thread: *Thread, work: *void) -> 
         array_add(*files_to_scan, full_path);
         table_add(*file_list_table, full_path, true);
 
-        // @Myfork lol
-        if ends_with(full_path, ".ctags") {
-            array_add(*ctag_files_to_load, full_path);
-        }
+        // @Myfork lol nocheckin PLEASE move this shit out of here
+        // if ends_with(full_path, ".ctags") {
+        //     array_add(*ctag_files_to_load, full_path);
+        // }
     }
 
     for unique_project_dirs visit_files(it, recursive = true, scan_pool_allocator, maybe_add_file_to_scan_list, visit_directories = true);
@@ -439,12 +442,6 @@ directory_scan_threadproc :: (group: *Thread_Group, thread: *Thread, work: *void
         }
     }
 
-    return .CONTINUE;
-}
-
-ctags_scan_threadproc :: (group: *Thread_Group, thread: *Thread, work: *void) -> Thread_Continue_Status {
-    log("Entering ctags scan thread proc!");
-    for ctag_files_to_load load_ctag_file(it);
     return .CONTINUE;
 }
 

@@ -6,6 +6,7 @@ CONFIG_SECTIONS :: Config_Section.[
             "ignore",
             "allow",
             "file associations",
+            "ctags", // @Myfork
         ],
         parse_function = "parse_workspace_line",
         allow_lines_outside_subsection = true,
@@ -555,6 +556,39 @@ parse_workspace_line :: (using parser: *Config_Parser, line: string) -> success:
             }
             for split(wildcards, cast(u8) #char " ",, temp) {
                 array_add(*result.config.file_associations, .{ wildcard = trim(it), lang = lang, });
+            }
+
+        case .workspace_ctags; // @Myfork
+            path := copy_temporary_string(line);
+            path_overwrite_separators(path, #char "/");
+            path = trim_right(path, "/");
+            relative_to_config := !is_absolute_path(path) && config_path;
+            abs_path := path;
+            if relative_to_config {
+                if path == "." {
+                    abs_path = config_path;
+                } else {
+                    abs_path = tprint("%/%", config_path, path);
+                }
+            }
+
+            if file_exists(abs_path) {
+                array_add(*result.config.ctag_files, copy_string(abs_path));
+                log("Found ctag file in config: %" , abs_path);
+            } else {
+                if parse_for_highlighting {
+                    // Highlight the bad chunk
+                    for chunk : split(path, "/",, temp) {
+                        dir_prefix := slice(path, 0, chunk.data - path.data + chunk.count);
+                        if !dir_prefix continue;
+                        abs_dir_prefix := ifx relative_to_config then tprint("%/%", config_path, dir_prefix) else dir_prefix;
+                        if !file_exists(abs_dir_prefix) {
+                            add_highlight(parser, chunk.data - path.data, chunk.count, .error);
+                            break;
+                        }
+                    }
+                }
+                return true, tprint("Attempted to load ctag file '%', but it doesn't exist", abs_path);
             }
     }
     return true, "";
@@ -1419,6 +1453,7 @@ Parsed_Config :: struct {
     ignore:             [..] File_Pattern;
     allow:              [..] File_Pattern;
     file_associations:  [..] File_Association;
+    ctag_files:         [..] string;
 
     // Keymap
     keymap_common:           [..] Key_Mapping;

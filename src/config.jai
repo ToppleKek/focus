@@ -1,6 +1,6 @@
 // Increment this if your PR adds a setting, color or default keybinding (and amend the relevant array
 // in config_migrator.jai).  You don't need to increase it for each such change; once per PR is best.
-CURRENT_CONFIG_VERSION :: 25;
+CURRENT_CONFIG_VERSION :: 26;
 
 load_global_config :: (fallback_to_default_on_failure := false, force := false) -> success: bool, changed: bool, there_were_warnings: bool {
     config_path := tprint("%/global.focus-config", config_dir);
@@ -105,6 +105,10 @@ refresh_config :: (path: string) {
     old_file_associations.allocator = temp;
     for config.workspace.file_associations array_add(*old_file_associations, .{ copy_temporary_string(it.wildcard), it.lang });
 
+    old_ctag_file_list: [..] string; // @Myfork
+    old_ctag_file_list.allocator = temp;
+    for config.workspace.ctag_files array_add(*old_ctag_file_list, copy_temporary_string(it));
+
     old_comment_highlight_words1 := copy_temporary_string(config.settings.comment_highlight_words1);
     old_comment_highlight_words2 := copy_temporary_string(config.settings.comment_highlight_words2);
     old_comment_highlight_words3 := copy_temporary_string(config.settings.comment_highlight_words3);
@@ -164,6 +168,10 @@ refresh_config :: (path: string) {
     }
     for old_ignore_list {
         exists := array_find(config.workspace.ignore, it);
+        if !exists { allow_ignore_changed = true; break; }
+    }
+    for old_ctag_file_list { // @Myfork
+        exists := array_find(config.workspace.ctag_files, it);
         if !exists { allow_ignore_changed = true; break; }
     }
 
@@ -458,6 +466,7 @@ merge_configs :: (dst: *Config, parsed: Parsed_Config) {
     if parsed.ignore            then dst.workspace.ignore  = parsed.ignore;
     if parsed.allow             then dst.workspace.allow   = parsed.allow;
     if parsed.file_associations then dst.workspace.file_associations = parsed.file_associations;
+    if parsed.ctag_files        then dst.workspace.ctag_files = parsed.ctag_files;
 
     // Build config completely overrides the previous config if present
     if parsed.build.commands then dst.build = parsed.build;
@@ -685,6 +694,7 @@ Workspace :: struct {
     ignore:             [] File_Pattern;
     allow:              [] File_Pattern;
     file_associations:  [] File_Association;
+    ctag_files:         [] string; // @Myfork
 }
 
 File_Pattern :: struct {
